@@ -1,0 +1,48 @@
+@page "/connaissances"
+@inject ApiClient Api
+
+<PageTitle>Base de connaissances — MediaLib</PageTitle>
+<h1>Base de connaissances</h1>
+<p class="discret">Recherche dans les documents publiés (règlement, conditions de prêt, FAQ, horaires, charte WhatsApp). Les brouillons et documents archivés ne sont jamais cités.</p>
+
+<form class="fiche-recherche" @onsubmit="Rechercher" @onsubmit:preventDefault>
+    <span class="numero">registre</span>
+    <div class="ligne" style="margin-top:.5rem">
+        <input type="search" style="flex:1" @bind="_q" placeholder="ex. prolongation, horaires, STOP…" aria-label="Question" />
+        <button class="btn btn-principal" type="submit">Chercher</button>
+    </div>
+</form>
+
+<Message Erreur="@_erreur" />
+@if (_extraits is not null)
+{
+    @if (_extraits.Count == 0)
+    {
+        <p class="lettrine">Aucun passage publié ne répond à cette question.</p>
+    }
+    @foreach (var e in _extraits)
+    {
+        <article class="carte">
+            <div class="ligne" style="justify-content:space-between">
+                <h3 style="margin:0">@e.Section</h3>
+                <span class="manuscrit">score @e.Score.ToString("0.00")</span>
+            </div>
+            <p style="white-space:pre-line">@e.Contenu</p>
+            <RagCitationTag Source="new SourceDto(e.Titre, e.Version, e.Section)" />
+        </article>
+    }
+}
+
+@code {
+    private string? _q;
+    private List<ExtraitDto>? _extraits;
+    private string? _erreur;
+
+    private async Task Rechercher()
+    {
+        if (string.IsNullOrWhiteSpace(_q)) return;
+        var r = await Api.GetAsync<List<ExtraitDto>>($"api/documents/recherche?limite=5&q={Uri.EscapeDataString(_q)}");
+        _extraits = r.Valeur;
+        _erreur = r.Erreur;
+    }
+}

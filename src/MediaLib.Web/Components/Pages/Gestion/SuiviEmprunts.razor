@@ -1,0 +1,114 @@
+@page "/gestion/emprunts"
+@attribute [Authorize(Roles = Roles.Gestion)]
+@inject ApiClient Api
+
+<PageTitle>Suivi des emprunts — MediaLib</PageTitle>
+<h1>Suivi des emprunts</h1>
+
+<div class="kpis">
+    <div class="kpi"><strong>@(_enCours?.Count ?? 0)</strong>emprunts en cours</div>
+    <div class="kpi" style="border-top-color:var(--terracotta)"><strong>@(_enCours?.Count(e => e.Statut == StatutEmprunt.EnRetard) ?? 0)</strong>en retard</div>
+    <div class="kpi"><strong>@(_enCours?.Count(e => e.Statut == StatutEmprunt.EcheanceProche) ?? 0)</strong>échéances proches</div>
+    <div class="kpi" style="border-top-color:var(--ardoise)"><strong>@(_relances?.Count(r => r.Statut == StatutRelance.EnAttenteValidation) ?? 0)</strong>relances à valider</div>
+</div>
+<Message Erreur="@_erreur" Succes="@_succes" />
+
+<div class="onglets">
+    <button class="@(_retardsSeulement ? "" : "actif")" @onclick="() => Filtrer(false)">Tous les prêts en cours</button>
+    <button class="@(_retardsSeulement ? "actif" : "")" @onclick="() => Filtrer(true)">Retards</button>
+</div>
+
+@if (_enCours is not null)
+{
+    <div class="defilement">
+        <table class="registre">
+            <thead><tr><th>N°</th><th>Adhérent</th><th>Livre</th><th>Emprunté</th><th>Échéance</th><th>Statut</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var e in Visibles)
+                {
+                    <tr>
+                        <td>@e.Id</td>
+                        <td>@e.UtilisateurNom</td>
+                        <td>@e.LivreTitre</td>
+                        <td>@e.DateEmprunt.ToString("dd/MM/yyyy")</td>
+                        <td>@e.DateRetourPrevue.ToString("dd/MM/yyyy")</td>
+                        <td><StatutBadge Emprunt="e.Statut" /> @if (e.JoursRetard > 0) { <span class="discret">+@e.JoursRetard j</span> }</td>
+                        <td><button class="btn btn-secondaire btn-petit" @onclick="() => Retour(e)">Enregistrer le retour</button></td>
+                    </tr>
+                }
+                @if (!Visibles.Any()) { <tr><td colspan="7" class="discret">Aucun emprunt.</td></tr> }
+            </tbody>
+        </table>
+    </div>
+}
+
+<hr class="filet" />
+<div class="ligne" style="justify-content:space-between">
+    <h2 style="margin:0">Relances</h2>
+    <button class="btn btn-principal btn-petit" disabled="@_occupe" @onclick="Traiter">Lancer le traitement maintenant</button>
+</div>
+<p class="discret">Le planificateur tourne automatiquement ; J-2 et J+1 partent seules, J+7 attend une validation dans « Décisions à valider ». Un même rappel n'est jamais envoyé deux fois (clé d'idempotence).</p>
+@if (_relances is not null)
+{
+    <div class="defilement">
+        <table class="registre">
+            <thead><tr><th>Adhérent</th><th>Livre</th><th>Niveau</th><th>Échéance</th><th>Statut</th><th>Tentatives</th><th>Clé</th></tr></thead>
+            <tbody>
+                @foreach (var r in _relances)
+                {
+                    <tr>
+                        <td>@r.Adherent</td>
+                        <td>@r.LivreTitre</td>
+                        <td>@r.Niveau</td>
+                        <td>@r.Echeance.ToString("dd/MM/yyyy")</td>
+                        <td><span class="badge @(r.Statut switch { StatutRelance.Envoyee => "badge-olive", StatutRelance.EnAttenteValidation => "badge-dore", StatutRelance.Echec or StatutRelance.Escaladee => "badge-terracotta", _ => "badge-brun" })">@r.Statut</span></td>
+                        <td>@r.Tentatives</td>
+                        <td class="manuscrit">@r.CleIdempotence</td>
+                    </tr>
+                }
+                @if (_relances.Count == 0) { <tr><td colspan="7" class="discret">Aucune relance.</td></tr> }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<EmpruntDto>? _enCours;
+    private List<RelanceDto>? _relances;
+    private bool _retardsSeulement, _occupe;
+    private string? _erreur, _succes;
+
+    private IEnumerable<EmpruntDto> Visibles => _retardsSeulement ? _enCours!.Where(e => e.Statut == StatutEmprunt.EnRetard) : _enCours!;
+
+    protected override Task OnInitializedAsync() => Charger();
+
+    private void Filtrer(bool retards) => _retardsSeulement = retards;
+
+    private async Task Charger()
+    {
+        var e = await Api.GetAsync<List<EmpruntDto>>("api/emprunts");
+        _enCours = e.Valeur ?? [];
+        _erreur = e.Erreur;
+        _relances = (await Api.GetAsync<List<RelanceDto>>("api/relances")).Valeur ?? [];
+    }
+
+    private async Task Retour(EmpruntDto e)
+    {
+        _erreur = _succes = null;
+        var r = await Api.PostAsync<EmpruntDto>($"api/emprunts/{e.Id}/retour");
+        if (r.Ok) _succes = $"Retour de « {e.LivreTitre} » enregistré. Les réservations en attente ont été prévenues.";
+        else _erreur = r.Erreur;
+        await Charger();
+    }
+
+    private async Task Traiter()
+    {
+        _occupe = true;
+        _erreur = _succes = null;
+        var r = await Api.PostAsync<TraitementRelancesDto>("api/relances/traitement");
+        if (r.Ok) _succes = $"{r.Valeur!.Detectees} relance(s) détectée(s), {r.Valeur.Envoyees} envoyée(s), {r.Valeur.EnEchec} en échec, {r.Valeur.ReservationsExpirees} réservation(s) expirée(s).";
+        else _erreur = r.Erreur;
+        await Charger();
+        _occupe = false;
+    }
+}

@@ -1,0 +1,10 @@
+@inject NavigationManager Navigation
+
+@code {
+    // Conserve la page demandée pour y revenir après la connexion.
+    protected override void OnInitialized()
+    {
+        var retour = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+        Navigation.NavigateTo($"connexion?returnUrl={Uri.EscapeDataString(retour)}");
+    }
+}

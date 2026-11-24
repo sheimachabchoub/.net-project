@@ -1,0 +1,19 @@
+@* Ruban vertical à découpe en V : olive = en cours, doré = échéance proche, terracotta = retard, ardoise = réservation. *@
+<span class="ruban @Classe" title="@Libelle" aria-label="@Libelle"></span>
+
+@code {
+    [Parameter] public StatutEmprunt? Emprunt { get; set; }
+    [Parameter] public StatutReservation? Reservation { get; set; }
+
+    private string Classe => (Emprunt, Reservation) switch
+    {
+        (StatutEmprunt.EnCours, _) => "ruban-olive",
+        (StatutEmprunt.EcheanceProche, _) => "ruban-dore",
+        (StatutEmprunt.EnRetard, _) => "ruban-terracotta",
+        (StatutEmprunt.Rendu, _) => "ruban-brun",
+        (_, StatutReservation.EnAttente or StatutReservation.Notifiee) => "ruban-ardoise",
+        _ => "ruban-brun",
+    };
+
+    private string Libelle => Emprunt is { } e ? Libelles.Emprunt(e) : Reservation is { } r ? Libelles.Reservation(r) : "";
+}

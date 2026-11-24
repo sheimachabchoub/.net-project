@@ -1,0 +1,69 @@
+@page "/mes-emprunts"
+@attribute [Authorize(Roles = Roles.Membre)]
+@inject ApiClient Api
+
+<PageTitle>Mes emprunts — MediaLib</PageTitle>
+<h1>Mes emprunts</h1>
+<p class="discret">
+    <span class="badge badge-olive">En cours</span> <span class="badge badge-dore">Échéance proche</span>
+    <span class="badge badge-terracotta">En retard</span> — une prolongation de @(_regles?.ProlongationJours ?? 7) jours peut être demandée une fois ; un bibliothécaire la valide.
+</p>
+<Message Erreur="@_erreur" Succes="@_succes" />
+
+@if (_emprunts is null)
+{
+    <p class="manuscrit">On ouvre votre carnet…</p>
+}
+else if (_emprunts.Count == 0)
+{
+    <p class="lettrine">Vous n'avez aucun emprunt en cours. Le <a href="catalogue">catalogue</a> vous attend !</p>
+}
+else
+{
+    <p class="manuscrit">@_emprunts.Count / @(_regles?.MaxEmprunts ?? 5) emprunts en cours</p>
+    @foreach (var e in _emprunts)
+    {
+        <article class="carte fiche-emprunt">
+            <StatusBookmark Emprunt="e.Statut" />
+            <h3><a href="livres/@e.LivreId">@e.LivreTitre</a></h3>
+            <div class="ligne">
+                <StatutBadge Emprunt="e.Statut" />
+                <span>Emprunté le @e.DateEmprunt.ToString("dd/MM/yyyy")</span>
+                <strong>À rendre le @e.DateRetourPrevue.ToString("dd/MM/yyyy")</strong>
+                @if (e.JoursRetard > 0) { <span class="badge badge-terracotta">@e.JoursRetard jour(s) de retard</span> }
+                @if (e.NbProlongations > 0) { <span class="manuscrit">déjà prolongé</span> }
+            </div>
+            @if (e.Statut != StatutEmprunt.EnRetard && e.NbProlongations < (_regles?.ProlongationsMax ?? 1))
+            {
+                <button class="btn btn-contour btn-petit" style="margin-top:.6rem" @onclick="() => Prolonger(e)">Demander une prolongation</button>
+            }
+        </article>
+    }
+}
+
+@code {
+    private List<EmpruntDto>? _emprunts;
+    private ReglesDto? _regles;
+    private string? _erreur, _succes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _regles = (await Api.GetAsync<ReglesDto>("api/regles")).Valeur;
+        await Charger();
+    }
+
+    private async Task Charger()
+    {
+        var r = await Api.GetAsync<List<EmpruntDto>>("api/emprunts/moi");
+        _emprunts = r.Valeur ?? [];
+        if (!r.Ok) _erreur = r.Erreur;
+    }
+
+    private async Task Prolonger(EmpruntDto e)
+    {
+        _erreur = _succes = null;
+        var r = await Api.PostAsync<DecisionDto>($"api/emprunts/{e.Id}/prolongation");
+        if (r.Ok) _succes = $"Demande de prolongation pour « {e.LivreTitre} » transmise : elle attend la validation d'un bibliothécaire.";
+        else _erreur = r.Erreur;
+    }
+}

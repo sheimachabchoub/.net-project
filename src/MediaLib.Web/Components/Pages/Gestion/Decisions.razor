@@ -1,0 +1,75 @@
+@page "/gestion/decisions"
+@attribute [Authorize(Roles = Roles.Gestion)]
+@inject ApiClient Api
+
+<PageTitle>Décisions à valider — MediaLib</PageTitle>
+<h1>Décisions à valider</h1>
+<p class="discret">Politique : J-2 et J+1 automatiques ; J+7, prolongations et messages préparés par l'agent exigent votre validation ; prêt, retour et suppression sont interdits à l'agent.</p>
+<Message Erreur="@_erreur" Succes="@_succes" />
+
+<div class="deux-colonnes">
+    <section>
+        <h2>File de validation (@(_attente?.Count ?? 0))</h2>
+        @if (_attente is not null)
+        {
+            @if (_attente.Count == 0) { <p class="manuscrit">Rien à valider pour l'instant.</p> }
+            @foreach (var d in _attente)
+            {
+                <CarteValidation Decision="d" OnValider="Valider" />
+            }
+        }
+        @if (_escalades?.Count > 0)
+        {
+            <h2 style="margin-top:1.2rem">Escalades IA → humain</h2>
+            @foreach (var d in _escalades)
+            {
+                <CarteValidation Decision="d" />
+            }
+        }
+    </section>
+    <section>
+        <h2>Journal des décisions</h2>
+        <div class="defilement">
+            <table class="registre">
+                <thead><tr><th>Date</th><th>Déclencheur</th><th>Action proposée / retenue</th><th>Statut</th><th>Outils &amp; sources</th></tr></thead>
+                <tbody>
+                    @foreach (var d in _journal ?? [])
+                    {
+                        <tr>
+                            <td>@d.CreeLe.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                            <td>@d.Declencheur<br /><span class="discret">@d.Demandeur</span></td>
+                            <td>@CarteValidation.Titre(d.ActionProposee)<br /><span class="discret">@d.ActionRetenue · @d.Classement</span><br /><span class="discret">@d.Motif</span></td>
+                            <td>@Libelles.Decision(d.Statut)@if (d.Validateur is not null) { <br /><span class="discret">par @d.Validateur</span> }</td>
+                            <td class="discret">@string.Join(", ", d.Outils)@foreach (var s in d.Sources) { <br /><span>📖 @s.Titre v@(s.Version) § @s.Section</span> }</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+@code {
+    private List<DecisionDto>? _attente, _escalades, _journal;
+    private string? _erreur, _succes;
+
+    protected override Task OnInitializedAsync() => Charger();
+
+    private async Task Charger()
+    {
+        var a = await Api.GetAsync<List<DecisionDto>>("api/decisions?statut=EnAttenteValidation");
+        _attente = a.Valeur ?? [];
+        _erreur = a.Erreur;
+        _escalades = ((await Api.GetAsync<List<DecisionDto>>("api/decisions?statut=Escaladee&limite=20")).Valeur ?? []);
+        _journal = (await Api.GetAsync<List<DecisionDto>>("api/decisions?limite=60")).Valeur ?? [];
+    }
+
+    private async Task Valider((DecisionDto Decision, bool Approuve, string? Commentaire) v)
+    {
+        _erreur = _succes = null;
+        var r = await Api.PostAsync<DecisionDto>($"api/decisions/{v.Decision.Id}/{(v.Approuve ? "approuver" : "rejeter")}", new ValidationDecisionRequete { Commentaire = v.Commentaire });
+        if (r.Ok) _succes = $"Décision n°{v.Decision.Id} : {Libelles.Decision(r.Valeur!.Statut).ToLowerInvariant()}. {r.Valeur.Resultat}";
+        else _erreur = r.Erreur;
+        await Charger();
+    }
+}

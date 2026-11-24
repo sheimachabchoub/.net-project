@@ -1,0 +1,44 @@
+@inject ApiClient Api
+
+@* Marque-page de source : ouvre le passage cité dans un tiroir latéral. *@
+<button type="button" class="citation" @onclick="Ouvrir" title="Ouvrir la source">
+    📖 @Source.Titre — Version @Source.Version — Section : @Source.Section
+</button>
+
+@if (_ouvert)
+{
+    <div class="tiroir-fond" @onclick="() => _ouvert = false"></div>
+    <aside class="tiroir" role="dialog" aria-label="Source citée">
+        <div class="ligne" style="justify-content:space-between">
+            <span class="manuscrit">Version @Source.Version</span>
+            <button class="btn btn-contour btn-petit" @onclick="() => _ouvert = false">Fermer</button>
+        </div>
+        <h2>@Source.Titre</h2>
+        <h3>@Source.Section</h3>
+        <hr class="filet" />
+        @if (_extrait is null)
+        {
+            <p class="manuscrit">Je feuillette le document…</p>
+        }
+        else
+        {
+            <p style="white-space:pre-line">@_extrait</p>
+        }
+    </aside>
+}
+
+@code {
+    [Parameter, EditorRequired] public SourceDto Source { get; set; } = default!;
+
+    private bool _ouvert;
+    private string? _extrait;
+
+    private async Task Ouvrir()
+    {
+        _ouvert = true;
+        if (_extrait is not null) return;
+        var r = await Api.GetAsync<List<ExtraitDto>>($"api/documents/recherche?limite=10&q={Uri.EscapeDataString(Source.Section + " " + Source.Titre)}");
+        _extrait = r.Valeur?.FirstOrDefault(e => e.Titre == Source.Titre && e.Section == Source.Section)?.Contenu
+                   ?? "Ce passage n'est plus publié (document archivé ou modifié).";
+    }
+}

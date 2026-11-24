@@ -1,0 +1,68 @@
+@* Carte de validation bibliothécaire : bordure terracotta, résumé, Approuver / Rejeter / Reprendre la main. *@
+<article class="carte-validation">
+    <div class="entete-carte">
+        <strong>@Titre(Decision.ActionProposee)</strong>
+        <span class="manuscrit">fiche n°@Decision.Id · @Decision.CreeLe.ToLocalTime().ToString("dd/MM HH:mm")</span>
+    </div>
+    <div class="discret">Déclencheur : @Decision.Declencheur @(Decision.Demandeur is null ? "" : $"· Adhérent : {Decision.Demandeur}")</div>
+    <p class="motif">@Decision.Motif</p>
+    @if (!string.IsNullOrWhiteSpace(Decision.Resultat))
+    {
+        <p class="discret">Résultat : @Decision.Resultat</p>
+    }
+    @if (Decision.Statut == StatutDecision.EnAttenteValidation)
+    {
+        <input type="text" placeholder="Commentaire (facultatif)" @bind="_commentaire" aria-label="Commentaire" />
+        <div class="ligne" style="margin-top:.6rem">
+            <button class="btn btn-secondaire btn-petit" disabled="@_occupe" @onclick="() => Agir(true)">Approuver</button>
+            <button class="btn btn-contour btn-petit" disabled="@_occupe" @onclick="() => Agir(false)">Rejeter</button>
+            @if (Decision.ConversationId is { } c)
+            {
+                <a class="btn btn-principal btn-petit" href="gestion/conversations?id=@c">Reprendre la main</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="ligne">
+            <span class="badge @(Decision.Statut is StatutDecision.Executee or StatutDecision.Approuvee ? "badge-olive" : Decision.Statut is StatutDecision.Escaladee or StatutDecision.Rejetee or StatutDecision.Interdite ? "badge-terracotta" : "badge-brun")">@Libelles.Decision(Decision.Statut)</span>
+            @if (Decision.Validateur is not null) { <span class="discret">par @Decision.Validateur</span> }
+            @if (Decision.Statut == StatutDecision.Escaladee && Decision.ConversationId is { } c2)
+            {
+                <a class="btn btn-principal btn-petit" href="gestion/conversations?id=@c2">Reprendre la main</a>
+            }
+        </div>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public DecisionDto Decision { get; set; } = default!;
+    [Parameter] public EventCallback<(DecisionDto Decision, bool Approuve, string? Commentaire)> OnValider { get; set; }
+
+    private string? _commentaire;
+    private bool _occupe;
+
+    private async Task Agir(bool approuve)
+    {
+        _occupe = true;
+        await OnValider.InvokeAsync((Decision, approuve, string.IsNullOrWhiteSpace(_commentaire) ? null : _commentaire));
+        _occupe = false;
+    }
+
+    public static string Titre(string action) => action switch
+    {
+        "prolongation" => "Demande de prolongation",
+        "relance.retard_j7" => "Relance J+7 (validation requise)",
+        "relance.retard_j1" => "Relance J+1",
+        "relance.rappel_avant_echeance" => "Rappel avant échéance",
+        "relance.manuelle" => "Relance préparée par l'agent",
+        "message.libre" => "Message libre de l'agent",
+        "escalade" => "Escalade IA → bibliothécaire",
+        "reservation" => "Proposition de réservation",
+        "reponse.conversation" => "Réponse de l'agent",
+        "notification.reservation" => "Notification de réservation",
+        "liaison.whatsapp" => "Liaison WhatsApp",
+        "consentement.revoque" => "STOP WhatsApp",
+        _ => action,
+    };
+}

@@ -1,0 +1,22 @@
+<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                @if (context.User.Identity?.IsAuthenticated != true)
+                {
+                    <RedirigerConnexion />
+                }
+                else
+                {
+                    <div class="alerte alerte-erreur">
+                        <strong>Accès refusé.</strong> Votre rôle ne permet pas d'ouvrir cette page.
+                    </div>
+                }
+            </NotAuthorized>
+            <Authorizing>
+                <p class="manuscrit">Ouverture du registre…</p>
+            </Authorizing>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+</Router>

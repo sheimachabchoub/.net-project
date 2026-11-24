@@ -1,0 +1,62 @@
+@page "/"
+@inject ApiClient Api
+
+<PageTitle>MediaLib — Bibliothèque Vivante</PageTitle>
+
+<section class="accueil-hero">
+    <div class="ouverture" aria-hidden="true"><div class="plat">MediaLib<br />✦</div></div>
+    <div class="bienvenue">
+        <h1>Bienvenue dans votre bibliothèque</h1>
+        <p class="lettrine" style="text-align:left;max-width:640px;margin:0 auto">
+            Parcourez le catalogue, empruntez jusqu'à @(_regles?.MaxEmprunts ?? 5) livres pendant @(_regles?.DureeJours ?? 21) jours,
+            réservez les ouvrages déjà sortis et posez vos questions à Archimède, notre bibliothécaire IA, qui cite toujours ses sources.
+        </p>
+        <div class="ligne" style="justify-content:center;margin-top:1rem">
+            <a class="btn btn-principal" href="catalogue">Ouvrir le catalogue</a>
+            <a class="btn btn-secondaire" href="assistant">Parler à Archimède</a>
+        </div>
+    </div>
+</section>
+
+<hr class="filet" />
+<h2>Nouveautés sur les rayonnages</h2>
+<Message Erreur="@_erreur" />
+@if (_livres is null && _erreur is null)
+{
+    <p class="manuscrit">On dépoussière les étagères…</p>
+}
+else if (_livres is not null)
+{
+    <div class="grille">
+        @foreach (var l in _livres)
+        {
+            <BookCard Livre="l" />
+        }
+    </div>
+}
+
+@if (_regles is not null)
+{
+    <hr class="filet" />
+    <h2>Les règles en un coup d'œil</h2>
+    <div class="kpis">
+        <div class="kpi"><strong>@_regles.MaxEmprunts</strong>emprunts en même temps</div>
+        <div class="kpi"><strong>@_regles.DureeJours j</strong>durée d'un prêt</div>
+        <div class="kpi"><strong>@_regles.ProlongationJours j</strong>par prolongation (@_regles.ProlongationsMax max.)</div>
+        <div class="kpi"><strong>@_regles.DelaiRetraitReservationJours j</strong>pour retirer une réservation</div>
+    </div>
+}
+
+@code {
+    private List<LivreDto>? _livres;
+    private ReglesDto? _regles;
+    private string? _erreur;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var livres = await Api.GetAsync<PageResultat<LivreDto>>("api/livres?tri=AnneeDesc&taillePage=8");
+        _livres = livres.Valeur?.Elements.ToList();
+        _erreur = livres.Erreur;
+        _regles = (await Api.GetAsync<ReglesDto>("api/regles")).Valeur;
+    }
+}

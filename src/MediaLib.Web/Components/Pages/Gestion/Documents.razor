@@ -1,0 +1,104 @@
+@page "/gestion/documents"
+@attribute [Authorize(Roles = Roles.Gestion)]
+@inject ApiClient Api
+
+<PageTitle>Documents de connaissance — MediaLib</PageTitle>
+<h1>Documents de connaissance</h1>
+<p class="discret">Seuls les documents <strong>publiés</strong> sont découpés en fragments et cités par l'agent. Publier une nouvelle version archive automatiquement l'ancienne.</p>
+<Message Erreur="@_erreur" Succes="@_succes" />
+
+<div class="deux-colonnes">
+    <section>
+        <table class="registre">
+            <thead><tr><th>Titre</th><th>Version</th><th>Statut</th><th>Fragments</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var d in _documents ?? [])
+                {
+                    <tr>
+                        <td>@d.Titre<br /><span class="discret">@d.Type</span></td>
+                        <td class="manuscrit">v@d.Version</td>
+                        <td><span class="badge @(d.Statut switch { StatutPublication.Publie => "badge-olive", StatutPublication.Brouillon => "badge-dore", _ => "badge-brun" })">@d.Statut</span></td>
+                        <td>@d.NbFragments</td>
+                        <td class="ligne">
+                            <button class="btn btn-contour btn-petit" @onclick="() => Editer(d)">Modifier</button>
+                            @if (d.Statut != StatutPublication.Publie) { <button class="btn btn-secondaire btn-petit" @onclick='() => Action($"api/documents/{d.Id}/publier")'>Publier</button> }
+                            @if (d.Statut == StatutPublication.Publie) { <button class="btn btn-contour btn-petit" @onclick='() => Action($"api/documents/{d.Id}/archiver")'>Archiver</button> }
+                            <button class="btn btn-contour btn-petit" @onclick="() => Supprimer(d)">Supprimer</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+    <section class="carte">
+        <h2>@(_id is null ? "Nouveau document (brouillon)" : $"Modifier le document n°{_id}")</h2>
+        <EditForm Model="_modele" OnValidSubmit="Enregistrer" FormName="document">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="validation-errors" />
+            <div class="champs">
+                <div class="champ"><label for="titre">Titre</label><InputText id="titre" @bind-Value="_modele.Titre" /></div>
+                <div class="champ"><label for="version">Version</label><InputText id="version" @bind-Value="_modele.Version" /></div>
+                <div class="champ">
+                    <label for="type">Type</label>
+                    <InputSelect id="type" @bind-Value="_modele.Type">
+                        @foreach (var t in Enum.GetValues<TypeDocument>()) { <option value="@t">@t</option> }
+                    </InputSelect>
+                </div>
+            </div>
+            <div class="champ">
+                <label for="contenu">Contenu (Markdown : # Titre, ## Section)</label>
+                <InputTextArea id="contenu" @bind-Value="_modele.Contenu" style="min-height:260px;font-family:ui-monospace,monospace" />
+            </div>
+            <div class="ligne">
+                <button class="btn btn-principal" type="submit">Enregistrer</button>
+                <button class="btn btn-contour" type="button" @onclick="() => { _modele = new(); _id = null; }">Nouveau</button>
+            </div>
+        </EditForm>
+    </section>
+</div>
+
+@code {
+    private List<DocumentDto>? _documents;
+    private DocumentRequete _modele = new();
+    private int? _id;
+    private string? _erreur, _succes;
+
+    protected override Task OnInitializedAsync() => Charger();
+
+    private async Task Charger()
+    {
+        var r = await Api.GetAsync<List<DocumentDto>>("api/documents");
+        _documents = r.Valeur ?? [];
+        if (!r.Ok) _erreur = r.Erreur;
+    }
+
+    private void Editer(DocumentDto d)
+    {
+        _id = d.Id;
+        _modele = new DocumentRequete { Titre = d.Titre, Type = d.Type, Version = d.Version, Contenu = d.Contenu };
+    }
+
+    private async Task Enregistrer()
+    {
+        var r = _id is null ? await Api.PostAsync<DocumentDto>("api/documents", _modele) : await Api.PutAsync<DocumentDto>($"api/documents/{_id}", _modele);
+        _erreur = r.Erreur;
+        _succes = r.Ok ? "Document enregistré." : null;
+        await Charger();
+    }
+
+    private async Task Action(string url)
+    {
+        var r = await Api.PostAsync<DocumentDto>(url);
+        _erreur = r.Erreur;
+        _succes = r.Ok ? $"« {r.Valeur!.Titre} » v{r.Valeur.Version} : {r.Valeur.Statut}, {r.Valeur.NbFragments} fragment(s) indexé(s)." : null;
+        await Charger();
+    }
+
+    private async Task Supprimer(DocumentDto d)
+    {
+        var r = await Api.DeleteAsync($"api/documents/{d.Id}");
+        _erreur = r.Erreur;
+        _succes = r.Ok ? "Document supprimé." : null;
+        await Charger();
+    }
+}

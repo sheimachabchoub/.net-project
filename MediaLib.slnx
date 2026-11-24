@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MediaLib.Api/MediaLib.Api.csproj" />
+    <Project Path="src/MediaLib.Shared/MediaLib.Shared.csproj" />
+    <Project Path="src/MediaLib.Web/MediaLib.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MediaLib.Tests/MediaLib.Tests.csproj" />
+  </Folder>
+</Solution>

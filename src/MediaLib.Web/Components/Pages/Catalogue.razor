@@ -1,0 +1,102 @@
+@page "/catalogue"
+@inject ApiClient Api
+
+<PageTitle>Catalogue — MediaLib</PageTitle>
+<h1>Catalogue</h1>
+
+<form class="fiche-recherche" @onsubmit="Rechercher" @onsubmit:preventDefault>
+    <span class="numero">fiche n°@(_page)</span>
+    <div class="champs-recherche">
+        <div>
+            <label for="q">Titre, auteur ou ISBN</label>
+            <input id="q" type="search" @bind="_q" placeholder="ex. Verne, Le Petit Prince…" />
+        </div>
+        <div>
+            <label for="cat">Catégorie</label>
+            <select id="cat" @bind="_categorieId">
+                <option value="0">Toutes</option>
+                @foreach (var c in _categories)
+                {
+                    <option value="@c.Id">@c.Nom</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label for="tri">Tri</label>
+            <select id="tri" @bind="_tri">
+                @foreach (var t in Enum.GetValues<TriLivres>())
+                {
+                    <option value="@t">@Libelles.Tri(t)</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label for="dispo">Disponibilité</label>
+            <select id="dispo" @bind="_disponibles">
+                <option value="False">Tous</option>
+                <option value="True">Disponibles</option>
+            </select>
+        </div>
+        <button class="btn btn-principal" type="submit">Chercher</button>
+    </div>
+</form>
+
+<Message Erreur="@_erreur" />
+@if (_resultat is null && _erreur is null)
+{
+    <p class="manuscrit">On parcourt les rayonnages…</p>
+}
+else if (_resultat is not null)
+{
+    <p class="discret">@_resultat.Total ouvrage(s) trouvé(s)</p>
+    @if (_resultat.Total == 0)
+    {
+        <p class="lettrine">Aucun livre ne correspond. Essayez un autre mot, ou demandez à Archimède de vous conseiller.</p>
+    }
+    <div class="grille">
+        @foreach (var l in _resultat.Elements)
+        {
+            <BookCard Livre="l" />
+        }
+    </div>
+    <Pagination Page="_page" NbPages="_resultat.NbPages" PageChange="ChangerPage" />
+}
+
+@code {
+    private string? _q;
+    private int _categorieId;
+    private TriLivres _tri = TriLivres.Titre;
+    private bool _disponibles;
+    private int _page = 1;
+    private List<CategorieDto> _categories = [];
+    private PageResultat<LivreDto>? _resultat;
+    private string? _erreur;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _categories = (await Api.GetAsync<List<CategorieDto>>("api/categories")).Valeur ?? [];
+        await Charger();
+    }
+
+    private async Task Rechercher()
+    {
+        _page = 1;
+        await Charger();
+    }
+
+    private async Task ChangerPage(int p)
+    {
+        _page = p;
+        await Charger();
+    }
+
+    private async Task Charger()
+    {
+        var url = $"api/livres?page={_page}&taillePage=12&tri={_tri}&disponibles={_disponibles}"
+                  + (string.IsNullOrWhiteSpace(_q) ? "" : $"&q={Uri.EscapeDataString(_q)}")
+                  + (_categorieId > 0 ? $"&categorieId={_categorieId}" : "");
+        var r = await Api.GetAsync<PageResultat<LivreDto>>(url);
+        _resultat = r.Valeur;
+        _erreur = r.Erreur;
+    }
+}

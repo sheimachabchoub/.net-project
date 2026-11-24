@@ -1,0 +1,33 @@
+@inherits LayoutComponentBase
+
+@* Espace bibliothécaire : même palette et typographie, ornements réduits, densité d'information élevée. *@
+<Entete />
+
+<div class="gestion">
+    <nav class="gestion-menu" aria-label="Espace bibliothécaire">
+        <AuthorizeView Roles="@Roles.Gestion">
+            <p class="rubrique">Prêts</p>
+            <NavLink href="gestion/emprunts">Suivi des emprunts</NavLink>
+            <NavLink href="gestion/catalogue">Gestion du catalogue</NavLink>
+            <p class="rubrique">Agent &amp; canaux</p>
+            <NavLink href="gestion/decisions">Décisions à valider</NavLink>
+            <NavLink href="gestion/conversations">Conversations</NavLink>
+            <NavLink href="gestion/documents">Documents de connaissance</NavLink>
+        </AuthorizeView>
+        <AuthorizeView Roles="@Roles.Admin">
+            <p class="rubrique">Administration</p>
+            <NavLink href="admin/utilisateurs">Utilisateurs &amp; rôles</NavLink>
+        </AuthorizeView>
+        <p class="rubrique">Retour</p>
+        <NavLink href="" Match="NavLinkMatch.All">Bibliothèque</NavLink>
+    </nav>
+    <main class="gestion-contenu">
+        @Body
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Une erreur inattendue s'est produite.
+    <a href="." class="reload">Recharger</a>
+    <span class="dismiss">🗙</span>
+</div>

@@ -1,0 +1,131 @@
+@page "/gestion/conversations"
+@attribute [Authorize(Roles = Roles.Gestion)]
+@inject ApiClient Api
+
+<PageTitle>Conversations — MediaLib</PageTitle>
+<h1>Conversations</h1>
+<Message Erreur="@_erreur" Succes="@_succes" />
+
+<div class="ligne" style="margin-bottom:.8rem">
+    <select style="max-width:200px" @bind="_canal" @bind:after="Charger" aria-label="Canal">
+        <option value="">Tous les canaux</option>
+        <option value="Web">Web</option>
+        <option value="WhatsApp">WhatsApp</option>
+        <option value="Email">E-mail</option>
+    </select>
+    <select style="max-width:220px" @bind="_etat" @bind:after="Charger" aria-label="État">
+        <option value="">Tous les états</option>
+        <option value="Humain">Reprises par un humain</option>
+        <option value="Agent">Menées par l'agent</option>
+        <option value="Close">Closes</option>
+    </select>
+</div>
+
+<div class="deux-colonnes">
+    <section class="carte" style="padding:.4rem">
+        @foreach (var c in _liste ?? [])
+        {
+            <button class="btn btn-lien" style="display:block;width:100%;text-align:left;padding:.55rem .6rem;text-decoration:none;border-radius:6px;@(c.Id == _detail?.Conversation.Id ? "background:var(--parchemin)" : "")" @onclick="() => Ouvrir(c.Id)">
+                <CanalPastille Canal="c.Canal" />
+                <strong>@(c.UtilisateurNom ?? c.Telephone ?? "Visiteur anonyme")</strong>
+                <span class="badge @(c.Etat == EtatConversation.Humain ? "badge-terracotta" : c.Etat == EtatConversation.Close ? "badge-brun" : "badge-olive")">@c.Etat</span>
+                <br /><span class="discret">@c.NbMessages message(s) · @c.DerniereActiviteLe.ToLocalTime().ToString("dd/MM HH:mm")</span>
+            </button>
+        }
+        @if (_liste?.Count == 0) { <p class="discret" style="padding:.6rem">Aucune conversation.</p> }
+    </section>
+    <section>
+        @if (_detail is { } d)
+        {
+            var c = d.Conversation;
+            <div class="ligne" style="justify-content:space-between">
+                <h2 style="margin:0"><CanalPastille Canal="c.Canal" /> @(c.UtilisateurNom ?? c.Telephone ?? "Visiteur anonyme")</h2>
+                <div class="ligne">
+                    @if (c.Etat != EtatConversation.Humain) { <button class="btn btn-principal btn-petit" @onclick='() => Etat("reprendre")'>Reprendre la main</button> }
+                    else { <button class="btn btn-secondaire btn-petit" @onclick='() => Etat("rendre-agent")'>Rendre la main à l'agent</button> }
+                    <button class="btn btn-contour btn-petit" @onclick='() => Etat("cloturer")'>Clôturer</button>
+                </div>
+            </div>
+            @if (c.Canal == Canal.WhatsApp)
+            {
+                <p class="discret">Fenêtre de 24 h : @(c.FenetreOuverte ? "ouverte — réponse libre possible." : "fermée — seuls les modèles approuvés peuvent partir.")</p>
+            }
+            <div class="fil" style="max-height:48vh">
+                @foreach (var m in d.Messages)
+                {
+                    <div class="bulle @(m.Sens == Sens.Entrant ? "bulle-agent" : "bulle-moi")" style="@(m.Sens == Sens.Entrant ? "" : "align-self:flex-end")">
+                        @m.Contenu
+                        <div class="meta" style="opacity:.85">
+                            <span>@m.Auteur · @m.CreeLe.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                            <span class="badge @(m.Statut == StatutMessage.Echec ? "badge-terracotta" : "badge-brun")">@m.Statut</span>
+                            @if (m.Erreur is not null) { <span>⚠ @m.Erreur</span> }
+                            @if (m.CleIdempotence is not null) { <span class="manuscrit">@m.CleIdempotence</span> }
+                        </div>
+                    </div>
+                }
+            </div>
+            <EditForm Model="_reponse" OnValidSubmit="Repondre" FormName="reponse-biblio">
+                <DataAnnotationsValidator />
+                <div class="saisie">
+                    <InputTextArea @bind-Value="_reponse.Texte" placeholder="Votre réponse…" aria-label="Réponse" />
+                    <button class="btn btn-principal" type="submit" disabled="@(c.Canal == Canal.WhatsApp && !c.FenetreOuverte)">Envoyer</button>
+                </div>
+                <ValidationMessage For="() => _reponse.Texte" />
+            </EditForm>
+        }
+        else
+        {
+            <p class="manuscrit">Choisissez une conversation à gauche.</p>
+        }
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "id")] public int? IdInitial { get; set; }
+
+    private List<ConversationDto>? _liste;
+    private ConversationDetailDto? _detail;
+    private ReponseBibliothecaireRequete _reponse = new();
+    private string _canal = "", _etat = "";
+    private string? _erreur, _succes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Charger();
+        if (IdInitial is { } id) await Ouvrir(id);
+    }
+
+    private async Task Charger()
+    {
+        var url = "api/gestion/conversations?" + (_canal != "" ? $"canal={_canal}&" : "") + (_etat != "" ? $"etat={_etat}" : "");
+        var r = await Api.GetAsync<List<ConversationDto>>(url);
+        _liste = r.Valeur ?? [];
+        _erreur = r.Erreur;
+    }
+
+    private async Task Ouvrir(int id)
+    {
+        var r = await Api.GetAsync<ConversationDetailDto>($"api/gestion/conversations/{id}");
+        _detail = r.Valeur;
+        _erreur = r.Erreur;
+    }
+
+    private async Task Etat(string action)
+    {
+        var id = _detail!.Conversation.Id;
+        var r = await Api.PostAsync<bool>($"api/gestion/conversations/{id}/{action}");
+        _erreur = r.Erreur;
+        await Charger();
+        await Ouvrir(id);
+    }
+
+    private async Task Repondre()
+    {
+        _erreur = _succes = null;
+        var id = _detail!.Conversation.Id;
+        var r = await Api.PostAsync<MessageDto>($"api/gestion/conversations/{id}/messages", _reponse);
+        if (r.Ok) { _reponse = new(); _succes = "Message envoyé."; }
+        else _erreur = r.Erreur;
+        await Ouvrir(id);
+    }
+}

@@ -1,0 +1,51 @@
+﻿@inherits LayoutComponentBase
+
+<Entete />
+
+<div class="bureau">
+    <div class="livre">
+        <aside class="page-gauche">
+            <ul class="nav-page">
+                <li><NavLink href="" Match="NavLinkMatch.All">Accueil</NavLink></li>
+                <li><NavLink href="catalogue">Catalogue</NavLink></li>
+                <li><NavLink href="assistant">Assistant IA</NavLink></li>
+                <li><NavLink href="connaissances">Base de connaissances</NavLink></li>
+            </ul>
+            <AuthorizeView Roles="@Roles.Membre">
+                <p class="rubrique">Mon carnet</p>
+                <ul class="nav-page">
+                    <li><NavLink href="mes-emprunts">Mes emprunts</NavLink></li>
+                    <li><NavLink href="reservations">Mes réservations</NavLink></li>
+                    <li><NavLink href="historique">Historique</NavLink></li>
+                    <li><NavLink href="profil">Mon profil</NavLink></li>
+                </ul>
+            </AuthorizeView>
+            <AuthorizeView Roles="@Roles.Gestion">
+                <p class="rubrique">Espace bibliothécaire</p>
+                <ul class="nav-page">
+                    <li><NavLink href="gestion/emprunts">Suivi des emprunts</NavLink></li>
+                    <li><NavLink href="gestion/decisions">Décisions à valider</NavLink></li>
+                    <li><NavLink href="gestion/conversations">Conversations</NavLink></li>
+                </ul>
+            </AuthorizeView>
+            <hr class="filet" />
+            <p class="manuscrit">« Une bibliothèque est une chambre d'amis. »</p>
+        </aside>
+        <main class="page-droite">
+            @Body
+        </main>
+        <nav class="marque-pages" aria-label="Marque-pages">
+            <NavLink class="marque-page" href="catalogue">Catalogue</NavLink>
+            <NavLink class="marque-page" href="mes-emprunts">Mes emprunts</NavLink>
+            <NavLink class="marque-page" href="reservations">Réservations</NavLink>
+            <NavLink class="marque-page" href="assistant">Assistant IA</NavLink>
+            <NavLink class="marque-page" href="connaissances">Connaissances</NavLink>
+        </nav>
+    </div>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Une erreur inattendue s'est produite.
+    <a href="." class="reload">Recharger</a>
+    <span class="dismiss">🗙</span>
+</div>

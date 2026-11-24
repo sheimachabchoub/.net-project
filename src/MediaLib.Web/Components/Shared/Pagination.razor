@@ -1,0 +1,16 @@
+@if (NbPages > 1)
+{
+    <nav class="pagination" aria-label="Pagination">
+        <button class="btn btn-contour btn-petit" disabled="@(Page <= 1)" @onclick="() => Changer(Page - 1)">← Précédente</button>
+        <span class="manuscrit">page @Page / @NbPages</span>
+        <button class="btn btn-contour btn-petit" disabled="@(Page >= NbPages)" @onclick="() => Changer(Page + 1)">Suivante →</button>
+    </nav>
+}
+
+@code {
+    [Parameter] public int Page { get; set; }
+    [Parameter] public int NbPages { get; set; }
+    [Parameter] public EventCallback<int> PageChange { get; set; }
+
+    private Task Changer(int p) => PageChange.InvokeAsync(p);
+}

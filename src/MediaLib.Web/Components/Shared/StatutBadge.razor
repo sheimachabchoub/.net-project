@@ -1,0 +1,13 @@
+@if (Emprunt is { } e)
+{
+    <span class="badge @(e switch { StatutEmprunt.EnCours => "badge-olive", StatutEmprunt.EcheanceProche => "badge-dore", StatutEmprunt.EnRetard => "badge-terracotta", _ => "badge-brun" })">@Libelles.Emprunt(e)</span>
+}
+else if (Reservation is { } r)
+{
+    <span class="badge @(r is StatutReservation.EnAttente or StatutReservation.Notifiee ? "badge-ardoise" : "badge-brun")">@Libelles.Reservation(r)</span>
+}
+
+@code {
+    [Parameter] public StatutEmprunt? Emprunt { get; set; }
+    [Parameter] public StatutReservation? Reservation { get; set; }
+}

@@ -1,0 +1,21 @@
+@* Pastilles des canaux : enveloppe cachetée (e-mail), bulle WhatsApp vert olive, page (web). *@
+<span class="canal @Classe" title="@Canal" aria-label="Canal @Canal">
+    @switch (Canal)
+    {
+        case Canal.WhatsApp:
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1.2a6.7 6.7 0 0 0-5.8 10.1L1.3 14.7l3.5-.9A6.7 6.7 0 1 0 8 1.2Zm0 12.2a5.5 5.5 0 0 1-2.8-.8l-.2-.1-2 .5.5-2-.1-.2A5.5 5.5 0 1 1 8 13.4Zm3-4.1c-.2-.1-1-.5-1.1-.5s-.3-.1-.4.1l-.5.6c-.1.1-.2.1-.4 0a4.5 4.5 0 0 1-2.2-1.9c-.2-.3.2-.3.5-.9 0-.1 0-.2 0-.3L6.4 5c-.1-.3-.3-.3-.4-.3h-.3a.6.6 0 0 0-.5.2 1.9 1.9 0 0 0-.6 1.4 3.3 3.3 0 0 0 .7 1.8 7.6 7.6 0 0 0 2.9 2.6c1.1.5 1.5.5 2 .4a1.7 1.7 0 0 0 1.1-.8 1.4 1.4 0 0 0 .1-.8c0-.1-.2-.1-.4-.2Z" /></svg>
+            break;
+        case Canal.Email:
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.3" d="M2 4h12v8.5H2z M2 4l6 5 6-5" /><circle cx="8" cy="9.6" r="1.6" fill="currentColor" /></svg>
+            break;
+        default:
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.3" d="M3 2.5h7l3 3v8H3z M10 2.5v3h3" /></svg>
+            break;
+    }
+</span>
+
+@code {
+    [Parameter] public Canal Canal { get; set; }
+
+    private string Classe => Canal switch { Canal.WhatsApp => "canal-whatsapp", Canal.Email => "canal-email", _ => "canal-web" };
+}

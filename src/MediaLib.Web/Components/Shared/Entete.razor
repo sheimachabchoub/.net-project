@@ -1,0 +1,38 @@
+@inject MediaLibAuthStateProvider Auth
+@inject NavigationManager Navigation
+
+<header class="entete">
+    <a class="marque" href="">
+        <svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true">
+            <path d="M4 9c6-2 11-1 16 3 5-4 10-5 16-3v23c-6-2-11-1-16 3-5-4-10-5-16-3z" fill="#F5EBDD" stroke="#C39A5A" stroke-width="1.5" />
+            <path d="M20 12v23" stroke="#4A3428" stroke-width="1.2" />
+            <path d="M28 8v10l2-1.5 2 1.5V8" fill="#A7614C" />
+        </svg>
+        <strong>MediaLib</strong>
+        <span>Bibliothèque Vivante</span>
+    </a>
+    <div class="espace"></div>
+    <div class="compte">
+        <AuthorizeView>
+            <Authorized>
+                <AuthorizeView Roles="@Roles.Gestion" Context="g">
+                    <a href="gestion/emprunts">Espace bibliothécaire</a>
+                </AuthorizeView>
+                <span>Bonjour, <strong>@context.User.Identity?.Name</strong></span>
+                <button class="btn btn-contour btn-petit" style="color:var(--creme);border-color:rgba(245,235,221,.5)" @onclick="Deconnecter">Se déconnecter</button>
+            </Authorized>
+            <NotAuthorized>
+                <a href="connexion">Se connecter</a>
+                <a class="btn btn-principal btn-petit" href="inscription">S'inscrire</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</header>
+
+@code {
+    private async Task Deconnecter()
+    {
+        await Auth.DeconnecterAsync();
+        Navigation.NavigateTo("");
+    }
+}

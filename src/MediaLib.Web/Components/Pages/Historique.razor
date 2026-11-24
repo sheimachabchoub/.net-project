@@ -1,0 +1,47 @@
+@page "/historique"
+@attribute [Authorize(Roles = Roles.Membre)]
+@inject ApiClient Api
+
+<PageTitle>Historique — MediaLib</PageTitle>
+<h1>Historique de mes lectures</h1>
+<Message Erreur="@_erreur" />
+@if (_emprunts is null)
+{
+    <p class="manuscrit">On remonte le temps…</p>
+}
+else if (_emprunts.Count == 0)
+{
+    <p class="lettrine">Votre historique est encore vierge.</p>
+}
+else
+{
+    <div class="defilement">
+        <table class="registre">
+            <thead><tr><th>Livre</th><th>Emprunté le</th><th>Échéance</th><th>Rendu le</th><th>Prolongations</th></tr></thead>
+            <tbody>
+                @foreach (var e in _emprunts)
+                {
+                    <tr>
+                        <td><a href="livres/@e.LivreId">@e.LivreTitre</a></td>
+                        <td>@e.DateEmprunt.ToString("dd/MM/yyyy")</td>
+                        <td>@e.DateRetourPrevue.ToString("dd/MM/yyyy")</td>
+                        <td>@e.DateRetourReelle?.ToString("dd/MM/yyyy")</td>
+                        <td>@e.NbProlongations</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<EmpruntDto>? _emprunts;
+    private string? _erreur;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var r = await Api.GetAsync<List<EmpruntDto>>("api/emprunts/moi/historique");
+        _emprunts = r.Valeur ?? [];
+        _erreur = r.Erreur;
+    }
+}

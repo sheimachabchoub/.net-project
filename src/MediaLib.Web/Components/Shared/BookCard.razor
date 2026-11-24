@@ -1,0 +1,41 @@
+@* Carte livre : couverture illustrée avec relief de reliure, pastille de statut, actions rapides au survol. *@
+<article class="carte-livre">
+    <div class="couverture" style="background-image:@Couverture()">
+        <span>@Livre.Titre</span>
+    </div>
+    <span class="pastille badge @(Livre.NbDisponibles > 0 ? "badge-olive" : "badge-ardoise")">
+        @(Livre.NbDisponibles > 0 ? $"{Livre.NbDisponibles} disponible(s)" : "Indisponible")
+    </span>
+    <div class="corps">
+        <h3 class="titre-livre">@Livre.Titre</h3>
+        <span class="auteur">@Livre.AuteurNom · @Livre.Annee</span>
+        <span class="manuscrit">@Livre.CategorieNom</span>
+    </div>
+    <div class="actions-rapides">
+        <a class="btn btn-contour btn-petit" href="livres/@Livre.Id">Voir la fiche</a>
+        @if (Livre.NbDisponibles > 0)
+        {
+            <a class="btn btn-principal btn-petit" href="livres/@Livre.Id">Emprunter</a>
+        }
+        else
+        {
+            <a class="btn btn-secondaire btn-petit" href="livres/@Livre.Id">Réserver</a>
+        }
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public LivreDto Livre { get; set; } = default!;
+
+    private static readonly string[][] Teintes =
+    [
+        ["#4A3428", "#7a5a44"], ["#24352D", "#4b6656"], ["#A7614C", "#c98b6f"], ["#5B768A", "#86a0b3"], ["#556043", "#8a9670"], ["#7a5a27", "#C39A5A"],
+    ];
+
+    private string Couverture()
+    {
+        if (!string.IsNullOrWhiteSpace(Livre.Couverture)) return $"linear-gradient(rgba(0,0,0,.15),rgba(0,0,0,.55)), url('{Livre.Couverture}')";
+        var t = Teintes[Math.Abs(Livre.CategorieId) % Teintes.Length];
+        return $"linear-gradient(150deg, {t[1]}, {t[0]} 70%)";
+    }
+}

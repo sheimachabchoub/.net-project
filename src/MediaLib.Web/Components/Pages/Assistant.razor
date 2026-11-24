@@ -1,0 +1,108 @@
+@page "/assistant"
+@inject ApiClient Api
+@using static MediaLib.Web.Components.Shared.Archimede
+
+<PageTitle>Assistant IA — MediaLib</PageTitle>
+<h1>Archimède, le bibliothécaire IA</h1>
+<p class="discret">
+    Il cherche dans le catalogue, explique le règlement en citant la source et, une fois connecté, consulte vos emprunts.
+    Il prépare réservations et prolongations, mais ce sont vous et le bibliothécaire qui décidez.
+</p>
+
+<div class="assistant">
+    <Archimede Etat="_etat" />
+    <section>
+        <div class="fil" aria-live="polite">
+            @if (_echanges.Count == 0)
+            {
+                <div class="bulle bulle-agent">Bonjour ! Essayez : « Avez-vous des livres de Jules Verne ? », « Combien de temps puis-je garder un livre ? » ou « Mes emprunts ».</div>
+            }
+            @foreach (var e in _echanges)
+            {
+                <div class="bulle bulle-moi">@e.Question</div>
+                @if (e.Reponse is { } r)
+                {
+                    <div class="bulle bulle-agent @(e == _echanges[^1] ? "eclairee" : "")">
+                        @r.Texte
+                        <div class="meta">
+                            @foreach (var s in r.Sources.Take(1))
+                            {
+                                <RagCitationTag Source="s" />
+                            }
+                            @if (r.Escalade) { <span class="badge badge-terracotta">Transmis à un bibliothécaire</span> }
+                            <span class="badge badge-brun" title="Outils : @string.Join(", ", r.Outils)">@Libelles.Moteur(r.Moteur)</span>
+                            @if (r.PropositionReservationId is { } p && !e.Confirmee)
+                            {
+                                <button class="btn btn-principal btn-petit" @onclick="() => Confirmer(e, p)">Confirmer la réservation</button>
+                            }
+                            @if (e.Confirmee) { <span class="badge badge-olive">Réservation confirmée</span> }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+        <Message Erreur="@_erreur" />
+        <EditForm Model="_question" OnValidSubmit="Envoyer" FormName="assistant">
+            <DataAnnotationsValidator />
+            <div class="saisie">
+                <InputTextArea @bind-Value="_question.Texte" placeholder="Votre question…" aria-label="Votre question" />
+                <div class="colonne">
+                    <button class="btn btn-principal" type="submit" disabled="@(_etat == EtatArchimede.Recherche)">Envoyer</button>
+                    <button class="btn btn-contour btn-petit" type="button" disabled="@(_etat == EtatArchimede.Recherche)" @onclick="Transferer">Transférer à un bibliothécaire</button>
+                </div>
+            </div>
+            <ValidationMessage For="() => _question.Texte" />
+        </EditForm>
+    </section>
+</div>
+
+@code {
+    private sealed class Echange
+    {
+        public required string Question { get; init; }
+        public ReponseAgentDto? Reponse { get; set; }
+        public bool Confirmee { get; set; }
+    }
+
+    private readonly List<Echange> _echanges = [];
+    private QuestionAgentRequete _question = new();
+    private EtatArchimede _etat = EtatArchimede.Repos;
+    private int? _conversationId;
+    private string? _erreur;
+
+    private Task Envoyer() => Poser(_question.Texte);
+
+    private Task Transferer() => Poser("Je veux parler à un bibliothécaire, merci de transmettre ma demande.");
+
+    private async Task Poser(string texte)
+    {
+        if (string.IsNullOrWhiteSpace(texte)) return;
+        _erreur = null;
+        var echange = new Echange { Question = texte.Trim() };
+        _echanges.Add(echange);
+        _question = new QuestionAgentRequete();
+        _etat = EtatArchimede.Recherche;
+        StateHasChanged();
+
+        var r = await Api.PostAsync<ReponseAgentDto>("api/agent/messages", new QuestionAgentRequete { Texte = echange.Question, ConversationId = _conversationId });
+        if (r.Ok)
+        {
+            echange.Reponse = r.Valeur;
+            _conversationId = r.Valeur!.ConversationId;
+            _etat = EtatArchimede.Pret;
+        }
+        else
+        {
+            _echanges.Remove(echange);
+            _erreur = r.Erreur;
+            _etat = EtatArchimede.Repos;
+        }
+    }
+
+    private async Task Confirmer(Echange e, int propositionId)
+    {
+        var r = await Api.PostAsync<ReservationDto>($"api/agent/propositions/{propositionId}/confirmer");
+        if (r.Ok) e.Confirmee = true;
+        else _erreur = r.Erreur;
+    }
+}

@@ -1,0 +1,114 @@
+@page "/profil"
+@attribute [Authorize]
+@inject ApiClient Api
+
+<PageTitle>Mon profil — MediaLib</PageTitle>
+<h1>Mon profil</h1>
+<Message Erreur="@_erreur" Succes="@_succes" />
+
+@if (_moi is not null)
+{
+    <div class="deux-colonnes">
+        <section class="carte">
+            <h2>Coordonnées</h2>
+            <p class="discret">@_moi.Email · rôles : @string.Join(", ", _moi.Roles)</p>
+            <EditForm Model="_profil" OnValidSubmit="Enregistrer" FormName="profil">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="validation-errors" />
+                <div class="champs">
+                    <div class="champ"><label for="prenom">Prénom</label><InputText id="prenom" @bind-Value="_profil.Prenom" /></div>
+                    <div class="champ"><label for="nom">Nom</label><InputText id="nom" @bind-Value="_profil.Nom" /></div>
+                </div>
+                <div class="champ">
+                    <label for="tel">Numéro WhatsApp (format international)</label>
+                    <InputText id="tel" type="tel" @bind-Value="_profil.Telephone" placeholder="+21650123456" />
+                    <ValidationMessage For="() => _profil.Telephone" />
+                </div>
+                <div class="champ">
+                    <label for="canal">Canal préféré pour les rappels</label>
+                    <InputSelect id="canal" @bind-Value="_profil.CanalPrefere">
+                        <option value="@Canal.Email">E-mail</option>
+                        <option value="@Canal.WhatsApp">WhatsApp</option>
+                    </InputSelect>
+                </div>
+                <button class="btn btn-principal" type="submit">Enregistrer</button>
+            </EditForm>
+        </section>
+        <section class="carte">
+            <h2><CanalPastille Canal="Canal.WhatsApp" /> WhatsApp</h2>
+            <p class="discret">Trois conditions : un numéro valide, votre consentement, et la liaison du numéro avec un code. Répondez STOP à tout moment pour arrêter.</p>
+            <label class="ligne" style="font-weight:500">
+                <input type="checkbox" checked="@_moi.ConsentementWhatsapp" @onchange="ChangerConsentement" />
+                J'accepte de recevoir les messages de la bibliothèque sur WhatsApp
+            </label>
+            <p>
+                Numéro : <strong>@(_moi.Telephone ?? "aucun")</strong>
+                @if (_moi.TelephoneVerifie) { <span class="badge badge-olive">lié et vérifié</span> }
+                else if (_moi.Telephone is not null) { <span class="badge badge-dore">non vérifié</span> }
+            </p>
+            <div class="ligne">
+                <button class="btn btn-secondaire btn-petit" disabled="@(!_moi.ConsentementWhatsapp)" @onclick="Lier">Obtenir un code de liaison</button>
+                @if (_moi.TelephoneVerifie) { <button class="btn btn-contour btn-petit" @onclick="Delier">Délier le numéro</button> }
+            </div>
+            @if (_liaison is not null)
+            {
+                <div class="alerte alerte-info">
+                    Envoyez <strong>LIAISON @_liaison.Code</strong> à la bibliothèque sur WhatsApp avant @_liaison.ExpireLe.ToLocalTime().ToString("HH:mm"),
+                    ou ouvrez <a href="@_liaison.Lien" target="_blank" rel="noopener">ce lien wa.me</a> depuis votre téléphone.
+                </div>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    private UtilisateurDto? _moi;
+    private ProfilRequete _profil = new();
+    private LiaisonWhatsappDto? _liaison;
+    private string? _erreur, _succes;
+
+    protected override Task OnInitializedAsync() => Charger();
+
+    private async Task Charger()
+    {
+        var r = await Api.GetAsync<UtilisateurDto>("api/auth/moi");
+        if (!r.Ok) { _erreur = r.Erreur; return; }
+        Appliquer(r.Valeur!);
+    }
+
+    private void Appliquer(UtilisateurDto u)
+    {
+        _moi = u;
+        _profil = new ProfilRequete { Prenom = u.Prenom, Nom = u.Nom, Telephone = u.Telephone, CanalPrefere = u.CanalPrefere };
+    }
+
+    private async Task Enregistrer()
+    {
+        _erreur = _succes = null;
+        var r = await Api.PutAsync<UtilisateurDto>("api/compte/profil", _profil);
+        if (r.Ok) { Appliquer(r.Valeur!); _succes = "Profil enregistré."; }
+        else _erreur = r.Erreur;
+    }
+
+    private async Task ChangerConsentement(ChangeEventArgs e)
+    {
+        _erreur = _succes = null;
+        var r = await Api.PutAsync<UtilisateurDto>("api/compte/whatsapp/consentement", new ConsentementRequete { Consentement = e.Value is true });
+        if (r.Ok) Appliquer(r.Valeur!);
+        else _erreur = r.Erreur;
+    }
+
+    private async Task Lier()
+    {
+        var r = await Api.PostAsync<LiaisonWhatsappDto>("api/compte/whatsapp/liaison");
+        _liaison = r.Valeur;
+        _erreur = r.Erreur;
+    }
+
+    private async Task Delier()
+    {
+        var r = await Api.DeleteAsync("api/compte/whatsapp/liaison");
+        if (r.Ok) await Charger();
+        else _erreur = r.Erreur;
+    }
+}

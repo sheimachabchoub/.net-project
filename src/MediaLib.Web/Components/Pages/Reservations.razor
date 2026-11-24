@@ -1,0 +1,59 @@
+@page "/reservations"
+@attribute [Authorize(Roles = Roles.Membre)]
+@inject ApiClient Api
+
+<PageTitle>Mes réservations — MediaLib</PageTitle>
+<h1>Mes réservations</h1>
+<p class="discret">Quand un livre réservé revient, il est mis de côté pour le premier de la file pendant quelques jours, et vous êtes prévenu (WhatsApp ou e-mail).</p>
+<Message Erreur="@_erreur" Succes="@_succes" />
+
+@if (_reservations is null)
+{
+    <p class="manuscrit">On consulte la file d'attente…</p>
+}
+else if (_reservations.Count == 0)
+{
+    <p class="lettrine">Aucune réservation. Un livre indisponible ? Ouvrez sa fiche et réservez-le.</p>
+}
+else
+{
+    @foreach (var r in _reservations)
+    {
+        <article class="carte fiche-emprunt">
+            <StatusBookmark Reservation="r.Statut" />
+            <h3><a href="livres/@r.LivreId">@r.LivreTitre</a></h3>
+            <div class="ligne">
+                <StatutBadge Reservation="r.Statut" />
+                <span>Réservé le @r.CreeLe.ToLocalTime().ToString("dd/MM/yyyy")</span>
+                @if (r.Position > 0) { <span class="manuscrit">n°@r.Position dans la file</span> }
+                @if (r.ExpireLe is { } exp && r.Statut == StatutReservation.Notifiee) { <strong>À retirer avant le @exp.ToLocalTime().ToString("dd/MM/yyyy")</strong> }
+                @if (r.Statut is StatutReservation.EnAttente or StatutReservation.Notifiee)
+                {
+                    <button class="btn btn-contour btn-petit" @onclick="() => Annuler(r)">Annuler</button>
+                }
+            </div>
+        </article>
+    }
+}
+
+@code {
+    private List<ReservationDto>? _reservations;
+    private string? _erreur, _succes;
+
+    protected override Task OnInitializedAsync() => Charger();
+
+    private async Task Charger()
+    {
+        var r = await Api.GetAsync<List<ReservationDto>>("api/reservations/moi");
+        _reservations = r.Valeur ?? [];
+        if (!r.Ok) _erreur = r.Erreur;
+    }
+
+    private async Task Annuler(ReservationDto r)
+    {
+        var res = await Api.DeleteAsync($"api/reservations/{r.Id}");
+        if (res.Ok) _succes = "Réservation annulée.";
+        else _erreur = res.Erreur;
+        await Charger();
+    }
+}

@@ -1,0 +1,80 @@
+@page "/admin/utilisateurs"
+@attribute [Authorize(Roles = Roles.Admin)]
+@inject ApiClient Api
+
+<PageTitle>Utilisateurs et rôles — MediaLib</PageTitle>
+<h1>Utilisateurs et rôles</h1>
+<p class="discret">Changer les rôles d'un compte révoque ses sessions : il devra se reconnecter.</p>
+<Message Erreur="@_erreur" Succes="@_succes" />
+
+<input type="search" placeholder="Rechercher un nom ou un e-mail…" style="max-width:360px" @bind="_q" @bind:after="Charger" aria-label="Rechercher" />
+<div class="defilement" style="margin-top:.8rem">
+    <table class="registre">
+        <thead><tr><th>Utilisateur</th><th>Rôles</th><th>Emprunts</th><th>Verrouillage</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var u in _utilisateurs ?? [])
+            {
+                var choix = _roles[u.Id];
+                <tr>
+                    <td><strong>@u.NomComplet</strong><br /><span class="discret">@u.Email</span></td>
+                    <td>
+                        @foreach (var role in Roles.Tous)
+                        {
+                            <label class="ligne" style="font-weight:500;gap:.3rem">
+                                <input type="checkbox" checked="@choix.Contains(role)" @onchange="e => Basculer(u.Id, role, e.Value is true)" /> @role
+                            </label>
+                        }
+                    </td>
+                    <td>@u.EmpruntsEnCours</td>
+                    <td>
+                        @if (u.Verrouille)
+                        {
+                            <span class="badge badge-terracotta">verrouillé</span>
+                            <button class="btn btn-contour btn-petit" @onclick="() => Deverrouiller(u)">Déverrouiller</button>
+                        }
+                        else { <span class="badge badge-olive">actif</span> }
+                    </td>
+                    <td><button class="btn btn-principal btn-petit" @onclick="() => Enregistrer(u)">Enregistrer les rôles</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<UtilisateurAdminDto>? _utilisateurs;
+    private Dictionary<string, HashSet<string>> _roles = [];
+    private string? _q, _erreur, _succes;
+
+    protected override Task OnInitializedAsync() => Charger();
+
+    private async Task Charger()
+    {
+        var r = await Api.GetAsync<List<UtilisateurAdminDto>>("api/admin/utilisateurs" + (string.IsNullOrWhiteSpace(_q) ? "" : $"?q={Uri.EscapeDataString(_q)}"));
+        _utilisateurs = r.Valeur ?? [];
+        _roles = _utilisateurs.ToDictionary(u => u.Id, u => u.Roles.ToHashSet());
+        if (!r.Ok) _erreur = r.Erreur;
+    }
+
+    private void Basculer(string id, string role, bool coche)
+    {
+        if (coche) _roles[id].Add(role);
+        else _roles[id].Remove(role);
+    }
+
+    private async Task Enregistrer(UtilisateurAdminDto u)
+    {
+        var r = await Api.PutAsync<UtilisateurAdminDto>($"api/admin/utilisateurs/{u.Id}/roles", new RolesRequete { Roles = _roles[u.Id].ToList() });
+        _erreur = r.Erreur;
+        _succes = r.Ok ? $"Rôles de {u.NomComplet} : {string.Join(", ", r.Valeur!.Roles)}." : null;
+        await Charger();
+    }
+
+    private async Task Deverrouiller(UtilisateurAdminDto u)
+    {
+        var r = await Api.PostAsync<bool>($"api/admin/utilisateurs/{u.Id}/deverrouiller");
+        _erreur = r.Erreur;
+        _succes = r.Ok ? $"{u.NomComplet} déverrouillé." : null;
+        await Charger();
+    }
+}

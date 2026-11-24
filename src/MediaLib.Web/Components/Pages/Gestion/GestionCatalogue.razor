@@ -1,0 +1,226 @@
+@page "/gestion/catalogue"
+@attribute [Authorize(Roles = Roles.Gestion)]
+@inject ApiClient Api
+
+<PageTitle>Gestion du catalogue — MediaLib</PageTitle>
+<h1>Gestion du catalogue</h1>
+<Message Erreur="@_erreur" Succes="@_succes" />
+
+<div class="onglets">
+    <button class="@(_onglet == 0 ? "actif" : "")" @onclick="() => _onglet = 0">Livres</button>
+    <button class="@(_onglet == 1 ? "actif" : "")" @onclick="() => _onglet = 1">Auteurs</button>
+    <button class="@(_onglet == 2 ? "actif" : "")" @onclick="() => _onglet = 2">Catégories</button>
+</div>
+
+@if (_onglet == 0)
+{
+    <div class="deux-colonnes">
+        <section class="carte">
+            <h2>@(_livreId is null ? "Nouveau livre" : $"Modifier le livre n°{_livreId}")</h2>
+            <EditForm Model="_livre" OnValidSubmit="EnregistrerLivre" FormName="livre">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="validation-errors" />
+                <div class="champ"><label for="titre">Titre</label><InputText id="titre" @bind-Value="_livre.Titre" /></div>
+                <div class="champs">
+                    <div class="champ"><label for="isbn">ISBN (10 ou 13)</label><InputText id="isbn" @bind-Value="_livre.Isbn" /><ValidationMessage For="() => _livre.Isbn" /></div>
+                    <div class="champ"><label for="annee">Année</label><InputNumber id="annee" @bind-Value="_livre.Annee" /></div>
+                    <div class="champ"><label for="ex">Exemplaires</label><InputNumber id="ex" @bind-Value="_livre.NbExemplaires" /></div>
+                </div>
+                <div class="champs">
+                    <div class="champ">
+                        <label for="auteur">Auteur</label>
+                        <InputSelect id="auteur" @bind-Value="_livre.AuteurId">
+                            <option value="0">— choisir —</option>
+                            @foreach (var a in _auteurs) { <option value="@a.Id">@a.NomComplet</option> }
+                        </InputSelect>
+                    </div>
+                    <div class="champ">
+                        <label for="cat">Catégorie</label>
+                        <InputSelect id="cat" @bind-Value="_livre.CategorieId">
+                            <option value="0">— choisir —</option>
+                            @foreach (var c in _categories) { <option value="@c.Id">@c.Nom</option> }
+                        </InputSelect>
+                    </div>
+                </div>
+                <div class="champ"><label for="couv">Couverture (URL, facultatif)</label><InputText id="couv" @bind-Value="_livre.Couverture" /></div>
+                <div class="champ"><label for="resume">Résumé</label><InputTextArea id="resume" @bind-Value="_livre.Resume" /></div>
+                <div class="ligne">
+                    <button class="btn btn-principal" type="submit">Enregistrer</button>
+                    <button class="btn btn-contour" type="button" @onclick="NouveauLivre">Nouveau</button>
+                </div>
+            </EditForm>
+        </section>
+        <section>
+            <input type="search" placeholder="Filtrer…" @bind="_filtre" @bind:after="ChargerLivres" aria-label="Filtrer les livres" />
+            <div class="defilement" style="margin-top:.6rem">
+                <table class="registre">
+                    <thead><tr><th>Titre</th><th>Auteur</th><th>ISBN</th><th>Dispo.</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var l in _livres?.Elements ?? [])
+                        {
+                            <tr>
+                                <td>@l.Titre</td><td>@l.AuteurNom</td><td>@l.Isbn</td><td>@l.NbDisponibles/@l.NbExemplaires</td>
+                                <td class="ligne">
+                                    <button class="btn btn-contour btn-petit" @onclick="() => EditerLivre(l)">Modifier</button>
+                                    <button class="btn btn-contour btn-petit" @onclick="() => Supprimer(Uri(l))">Supprimer</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (_livres is not null) { <Pagination Page="_page" NbPages="_livres.NbPages" PageChange="ChangerPage" /> }
+        </section>
+    </div>
+}
+else if (_onglet == 1)
+{
+    <div class="deux-colonnes">
+        <section class="carte">
+            <h2>@(_auteurId is null ? "Nouvel auteur" : "Modifier l'auteur")</h2>
+            <EditForm Model="_auteur" OnValidSubmit="EnregistrerAuteur" FormName="auteur">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="validation-errors" />
+                <div class="champs">
+                    <div class="champ"><label for="aprenom">Prénom</label><InputText id="aprenom" @bind-Value="_auteur.Prenom" /></div>
+                    <div class="champ"><label for="anom">Nom</label><InputText id="anom" @bind-Value="_auteur.Nom" /></div>
+                </div>
+                <div class="champ"><label for="bio">Biographie</label><InputTextArea id="bio" @bind-Value="_auteur.Biographie" /></div>
+                <div class="ligne">
+                    <button class="btn btn-principal" type="submit">Enregistrer</button>
+                    <button class="btn btn-contour" type="button" @onclick="() => { _auteur = new(); _auteurId = null; }">Nouveau</button>
+                </div>
+            </EditForm>
+        </section>
+        <section>
+            <table class="registre">
+                <thead><tr><th>Auteur</th><th>Livres</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var a in _auteurs)
+                    {
+                        <tr>
+                            <td>@a.NomComplet</td><td>@a.NbLivres</td>
+                            <td class="ligne">
+                                <button class="btn btn-contour btn-petit" @onclick="() => { _auteurId = a.Id; _auteur = new AuteurRequete { Prenom = a.Prenom, Nom = a.Nom, Biographie = a.Biographie }; }">Modifier</button>
+                                <button class="btn btn-contour btn-petit" @onclick='() => Supprimer($"api/auteurs/{a.Id}")'>Supprimer</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    </div>
+}
+else
+{
+    <div class="deux-colonnes">
+        <section class="carte">
+            <h2>@(_categorieId is null ? "Nouvelle catégorie" : "Modifier la catégorie")</h2>
+            <EditForm Model="_categorie" OnValidSubmit="EnregistrerCategorie" FormName="categorie">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="validation-errors" />
+                <div class="champ"><label for="cnom">Nom</label><InputText id="cnom" @bind-Value="_categorie.Nom" /></div>
+                <div class="champ"><label for="cdesc">Description</label><InputTextArea id="cdesc" @bind-Value="_categorie.Description" /></div>
+                <div class="ligne">
+                    <button class="btn btn-principal" type="submit">Enregistrer</button>
+                    <button class="btn btn-contour" type="button" @onclick="() => { _categorie = new(); _categorieId = null; }">Nouveau</button>
+                </div>
+            </EditForm>
+        </section>
+        <section>
+            <table class="registre">
+                <thead><tr><th>Catégorie</th><th>Livres</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var c in _categories)
+                    {
+                        <tr>
+                            <td>@c.Nom<br /><span class="discret">@c.Description</span></td><td>@c.NbLivres</td>
+                            <td class="ligne">
+                                <button class="btn btn-contour btn-petit" @onclick="() => { _categorieId = c.Id; _categorie = new CategorieRequete { Nom = c.Nom, Description = c.Description }; }">Modifier</button>
+                                <button class="btn btn-contour btn-petit" @onclick='() => Supprimer($"api/categories/{c.Id}")'>Supprimer</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    </div>
+}
+
+@code {
+    private int _onglet;
+    private PageResultat<LivreDto>? _livres;
+    private List<AuteurDto> _auteurs = [];
+    private List<CategorieDto> _categories = [];
+    private LivreRequete _livre = new();
+    private AuteurRequete _auteur = new();
+    private CategorieRequete _categorie = new();
+    private int? _livreId, _auteurId, _categorieId;
+    private string? _filtre, _erreur, _succes;
+    private int _page = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ChargerReferentiels();
+        await ChargerLivres();
+    }
+
+    private async Task ChargerReferentiels()
+    {
+        _auteurs = (await Api.GetAsync<List<AuteurDto>>("api/auteurs")).Valeur ?? [];
+        _categories = (await Api.GetAsync<List<CategorieDto>>("api/categories")).Valeur ?? [];
+    }
+
+    private async Task ChargerLivres()
+    {
+        var q = string.IsNullOrWhiteSpace(_filtre) ? "" : $"&q={System.Uri.EscapeDataString(_filtre)}";
+        _livres = (await Api.GetAsync<PageResultat<LivreDto>>($"api/livres?taillePage=15&page={_page}{q}")).Valeur;
+    }
+
+    private async Task ChangerPage(int p) { _page = p; await ChargerLivres(); }
+
+    private static string Uri(LivreDto l) => $"api/livres/{l.Id}";
+
+    private void NouveauLivre() { _livre = new(); _livreId = null; }
+
+    private void EditerLivre(LivreDto l)
+    {
+        _livreId = l.Id;
+        _livre = new LivreRequete { Titre = l.Titre, Isbn = l.Isbn, Resume = l.Resume, Annee = l.Annee, NbExemplaires = l.NbExemplaires, Couverture = l.Couverture, AuteurId = l.AuteurId, CategorieId = l.CategorieId };
+    }
+
+    private async Task EnregistrerLivre()
+    {
+        var r = _livreId is null ? await Api.PostAsync<LivreDto>("api/livres", _livre) : await Api.PutAsync<LivreDto>($"api/livres/{_livreId}", _livre);
+        await Bilan(r.Ok, r.Erreur, $"Livre « {_livre.Titre} » enregistré.");
+        if (r.Ok) NouveauLivre();
+    }
+
+    private async Task EnregistrerAuteur()
+    {
+        var r = _auteurId is null ? await Api.PostAsync<AuteurDto>("api/auteurs", _auteur) : await Api.PutAsync<AuteurDto>($"api/auteurs/{_auteurId}", _auteur);
+        await Bilan(r.Ok, r.Erreur, "Auteur enregistré.");
+        if (r.Ok) { _auteur = new(); _auteurId = null; }
+    }
+
+    private async Task EnregistrerCategorie()
+    {
+        var r = _categorieId is null ? await Api.PostAsync<CategorieDto>("api/categories", _categorie) : await Api.PutAsync<CategorieDto>($"api/categories/{_categorieId}", _categorie);
+        await Bilan(r.Ok, r.Erreur, "Catégorie enregistrée.");
+        if (r.Ok) { _categorie = new(); _categorieId = null; }
+    }
+
+    private async Task Supprimer(string url)
+    {
+        var r = await Api.DeleteAsync(url);
+        await Bilan(r.Ok, r.Erreur, "Suppression effectuée.");
+    }
+
+    private async Task Bilan(bool ok, string? erreur, string succes)
+    {
+        _erreur = ok ? null : erreur;
+        _succes = ok ? succes : null;
+        await ChargerReferentiels();
+        await ChargerLivres();
+    }
+}

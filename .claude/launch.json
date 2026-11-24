@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "medialib-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/MediaLib.Api", "--launch-profile", "http"],
+      "port": 5032
+    },
+    {
+      "name": "medialib-web",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/MediaLib.Web", "--launch-profile", "http"],
+      "port": 5038
+    }
+  ]
+}

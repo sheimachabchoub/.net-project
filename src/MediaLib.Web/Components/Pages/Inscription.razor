@@ -1,0 +1,46 @@
+@page "/inscription"
+@inject ApiClient Api
+@inject MediaLibAuthStateProvider Auth
+@inject NavigationManager Navigation
+
+<PageTitle>Inscription — MediaLib</PageTitle>
+<div style="max-width:560px">
+    <h1>Inscription</h1>
+    <p class="discret">L'inscription est gratuite. Mot de passe : au moins 8 caractères, une majuscule et un chiffre.</p>
+    <Message Erreur="@_erreur" />
+    <EditForm Model="_modele" OnValidSubmit="Valider" FormName="inscription">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="validation-errors" />
+        <div class="champs">
+            <div class="champ"><label for="prenom">Prénom</label><InputText id="prenom" @bind-Value="_modele.Prenom" /><ValidationMessage For="() => _modele.Prenom" /></div>
+            <div class="champ"><label for="nom">Nom</label><InputText id="nom" @bind-Value="_modele.Nom" /><ValidationMessage For="() => _modele.Nom" /></div>
+        </div>
+        <div class="champ"><label for="email">E-mail</label><InputText id="email" type="email" @bind-Value="_modele.Email" /><ValidationMessage For="() => _modele.Email" /></div>
+        <div class="champs">
+            <div class="champ"><label for="mdp">Mot de passe</label><InputText id="mdp" type="password" @bind-Value="_modele.MotDePasse" autocomplete="new-password" /><ValidationMessage For="() => _modele.MotDePasse" /></div>
+            <div class="champ"><label for="mdp2">Confirmation</label><InputText id="mdp2" type="password" @bind-Value="_modele.ConfirmationMotDePasse" autocomplete="new-password" /><ValidationMessage For="() => _modele.ConfirmationMotDePasse" /></div>
+        </div>
+        <button class="btn btn-principal" type="submit" disabled="@_occupe">Créer mon compte</button>
+    </EditForm>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    private readonly InscriptionRequete _modele = new();
+    private string? _erreur;
+    private bool _occupe;
+
+    private async Task Valider()
+    {
+        _occupe = true;
+        var r = await Api.PostAsync<UtilisateurDto>("api/auth/inscription", _modele);
+        if (r.Ok)
+        {
+            _erreur = await Auth.ConnecterAsync(new ConnexionRequete { Email = _modele.Email, MotDePasse = _modele.MotDePasse });
+            if (_erreur is null) Navigation.NavigateTo(Connexion.RetourLocal(ReturnUrl));
+        }
+        else _erreur = r.Erreur;
+        _occupe = false;
+    }
+}
