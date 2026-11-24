@@ -1,42 +1,15 @@
-@* Archimède, le grand-duc bibliothécaire, et sa lampe de banquier (repos / recherche / réponse prête). *@
+@* Archimède, le hibou bibliothécaire, avec sa lampe : repos / recherche (halo qui pulse) / réponse prête. *@
 <div class="perchoir @ClasseEtat" aria-live="polite">
-    <svg viewBox="0 0 220 230" role="img" aria-label="Archimède, le hibou bibliothécaire">
-        <defs>
-            <radialGradient id="halo" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stop-color="#C39A5A" stop-opacity=".95" />
-                <stop offset="100%" stop-color="#C39A5A" stop-opacity="0" />
-            </radialGradient>
-        </defs>
-        <!-- halo de la lampe -->
-        <circle class="halo" cx="168" cy="108" r="58" fill="url(#halo)" />
-        <!-- lampe de banquier -->
-        <path d="M150 96h36l-6-14h-24z" fill="#556043" stroke="#4A3428" stroke-width="2" />
-        <rect x="165" y="96" width="6" height="46" fill="#C39A5A" stroke="#4A3428" stroke-width="1.5" />
-        <rect x="152" y="140" width="32" height="8" rx="3" fill="#C39A5A" stroke="#4A3428" stroke-width="1.5" />
-        <!-- livre ouvert -->
-        <path d="M30 196c22-8 44-8 70 2 26-10 48-10 70-2v14c-22-7-44-7-70 3-26-10-48-10-70-3z" fill="#F5EBDD" stroke="#4A3428" stroke-width="2" />
-        <path d="M100 198v15" stroke="#4A3428" stroke-width="1.5" />
-        <!-- corps du hibou -->
-        <ellipse cx="88" cy="140" rx="46" ry="56" fill="#E8D7BA" stroke="#4A3428" stroke-width="2.4" />
-        <path d="M58 132c10 8 50 8 60 0v48c-12 10-48 10-60 0z" fill="#788363" stroke="#4A3428" stroke-width="2" />
-        <path d="M88 136v40" stroke="#4A3428" stroke-width="1.4" stroke-dasharray="2 4" />
-        <circle cx="88" cy="150" r="2" fill="#C39A5A" /><circle cx="88" cy="164" r="2" fill="#C39A5A" />
-        <!-- aigrettes -->
-        <path d="M52 92l-6-22 20 14M124 92l6-22-20 14" fill="#E8D7BA" stroke="#4A3428" stroke-width="2.2" stroke-linejoin="round" />
-        <!-- tête -->
-        <ellipse cx="88" cy="104" rx="38" ry="30" fill="#E8D7BA" stroke="#4A3428" stroke-width="2.4" />
-        <g class="lunettes">
-            <circle cx="72" cy="102" r="12" fill="#F5EBDD" stroke="#C39A5A" stroke-width="2.6" />
-            <circle cx="104" cy="102" r="12" fill="#F5EBDD" stroke="#C39A5A" stroke-width="2.6" />
-            <path d="M84 101h8" stroke="#C39A5A" stroke-width="2.4" />
-        </g>
-        <circle class="oeil" cx="72" cy="103" r="4.2" fill="#4A3428" />
-        <circle class="oeil" cx="104" cy="103" r="4.2" fill="#4A3428" />
-        <path d="M84 112l4 7 4-7z" fill="#A7614C" stroke="#4A3428" stroke-width="1.2" />
-        <!-- pattes -->
-        <path d="M74 192v6M80 192v6M96 192v6M102 192v6" stroke="#A7614C" stroke-width="3" stroke-linecap="round" />
+    <svg viewBox="0 0 200 175" role="img" aria-label="Archimède, le hibou bibliothécaire">
+        @Dessins.DefinitionsHalo
+        <g transform="translate(132 62)">@Dessins.Lampe()</g>
+        <g transform="translate(6 6)">@Dessins.Hibou</g>
+        <path d="M4 168h192" stroke="#4A3428" stroke-width="2.2" stroke-linecap="round" />
     </svg>
-    <div class="etat">@TexteEtat</div>
+    <div>
+        <div class="nom-mascotte">Archimède</div>
+        <div class="etat">@TexteEtat</div>
+    </div>
 </div>
 
 @code {
@@ -48,8 +21,8 @@
 
     private string TexteEtat => Etat switch
     {
-        EtatArchimede.Recherche => "Archimède feuillette ses carnets…",
-        EtatArchimede.Pret => "Voici ce que j'ai trouvé.",
-        _ => "Archimède vous écoute.",
+        EtatArchimede.Recherche => "consulte ses registres…",
+        EtatArchimede.Pret => "a trouvé une réponse.",
+        _ => "vous écoute.",
     };
 }

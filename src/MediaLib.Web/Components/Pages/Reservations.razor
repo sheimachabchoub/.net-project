@@ -3,8 +3,11 @@
 @inject ApiClient Api
 
 <PageTitle>Mes réservations — MediaLib</PageTitle>
-<h1>Mes réservations</h1>
-<p class="discret">Quand un livre réservé revient, il est mis de côté pour le premier de la file pendant quelques jours, et vous êtes prévenu (WhatsApp ou e-mail).</p>
+<div class="entete-page">
+    <h1>Mes réservations</h1>
+    <p>Quand un livre réservé revient, il est mis de côté pour le premier de la file pendant quelques jours, et vous êtes prévenu (WhatsApp ou e-mail).</p>
+</div>
+<LegendeStatuts />
 <Message Erreur="@_erreur" Succes="@_succes" />
 
 @if (_reservations is null)
@@ -13,7 +16,7 @@
 }
 else if (_reservations.Count == 0)
 {
-    <p class="lettrine">Aucune réservation. Un livre indisponible ? Ouvrez sa fiche et réservez-le.</p>
+    <div class="carte">Aucune réservation. Un livre indisponible ? Ouvrez sa fiche dans le <a href="catalogue">catalogue</a> et réservez-le.</div>
 }
 else
 {

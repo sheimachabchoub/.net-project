@@ -3,55 +3,74 @@
 @using static MediaLib.Web.Components.Shared.Archimede
 
 <PageTitle>Assistant IA — MediaLib</PageTitle>
-<h1>Archimède, le bibliothécaire IA</h1>
-<p class="discret">
-    Il cherche dans le catalogue, explique le règlement en citant la source et, une fois connecté, consulte vos emprunts.
-    Il prépare réservations et prolongations, mais ce sont vous et le bibliothécaire qui décidez.
-</p>
+<div class="entete-page">
+    <h1>Demandez à Archimède</h1>
+    <p>Il cherche dans le catalogue, explique le règlement en citant sa source et, une fois connecté, consulte vos emprunts. Il prépare réservations et prolongations ; c'est vous et le bibliothécaire qui décidez.</p>
+</div>
 
 <div class="assistant">
     <Archimede Etat="_etat" />
-    <section>
+
+    <section class="discussion" aria-label="Discussion avec Archimède">
+        <div class="entete-discussion">
+            <strong>Conversation</strong>
+            <button class="btn btn-contour btn-petit" type="button" disabled="@(_echanges.Count == 0 || _etat == EtatArchimede.Recherche)" @onclick="NouvelleConversation">Nouvelle conversation</button>
+        </div>
+
         <div class="fil" aria-live="polite">
-            @if (_echanges.Count == 0)
-            {
-                <div class="bulle bulle-agent">Bonjour ! Essayez : « Avez-vous des livres de Jules Verne ? », « Combien de temps puis-je garder un livre ? » ou « Mes emprunts ».</div>
-            }
+            <div class="message-agent">
+                <AvatarArchimede />
+                <div class="bulle bulle-agent">Bonjour ! Je suis Archimède. Essayez : « Avez-vous des livres de Jules Verne ? », « Combien de temps puis-je garder un livre ? » ou « Mes emprunts ».</div>
+            </div>
             @foreach (var e in _echanges)
             {
                 <div class="bulle bulle-moi">@e.Question</div>
                 @if (e.Reponse is { } r)
                 {
-                    <div class="bulle bulle-agent @(e == _echanges[^1] ? "eclairee" : "")">
-                        @r.Texte
-                        <div class="meta">
-                            @foreach (var s in r.Sources.Take(1))
+                    <div class="message-agent">
+                        <AvatarArchimede />
+                        <div class="bulle bulle-agent">
+                            @Afficher(r)
+                            @if (r.Sources.Count > 0 || r.Escalade || r.PropositionReservationId is not null || e.Confirmee)
                             {
-                                <RagCitationTag Source="s" />
+                                <div class="meta">
+                                    @foreach (var s in r.Sources.Take(1))
+                                    {
+                                        <RagCitationTag Source="s" />
+                                    }
+                                    @if (r.Escalade) { <span class="badge badge-terracotta">Transmis à un bibliothécaire</span> }
+                                    @if (r.PropositionReservationId is { } p && !e.Confirmee)
+                                    {
+                                        <button class="btn btn-principal btn-petit" @onclick="() => Confirmer(e, p)">Confirmer la réservation</button>
+                                    }
+                                    @if (e.Confirmee) { <span class="badge badge-olive">Réservation confirmée</span> }
+                                </div>
                             }
-                            @if (r.Escalade) { <span class="badge badge-terracotta">Transmis à un bibliothécaire</span> }
-                            <span class="badge badge-brun" title="Outils : @string.Join(", ", r.Outils)">@Libelles.Moteur(r.Moteur)</span>
-                            @if (r.PropositionReservationId is { } p && !e.Confirmee)
-                            {
-                                <button class="btn btn-principal btn-petit" @onclick="() => Confirmer(e, p)">Confirmer la réservation</button>
-                            }
-                            @if (e.Confirmee) { <span class="badge badge-olive">Réservation confirmée</span> }
                         </div>
                     </div>
                 }
             }
         </div>
+
+        @if (_repriseHumaine)
+        {
+            <div class="alerte alerte-info bandeau-humain">
+                Un bibliothécaire a repris cette conversation : Archimède ne répond plus ici.
+                Pour une autre question, ouvrez une <button class="btn-lien" @onclick="NouvelleConversation">nouvelle conversation</button>.
+            </div>
+        }
         <Message Erreur="@_erreur" />
+
         <EditForm Model="_question" OnValidSubmit="Envoyer" FormName="assistant">
             <DataAnnotationsValidator />
             <div class="saisie">
-                <InputTextArea @bind-Value="_question.Texte" placeholder="Votre question…" aria-label="Votre question" />
+                <InputTextArea @bind-Value="_question.Texte" placeholder="Écrivez votre question…" aria-label="Votre question" />
                 <div class="colonne">
                     <button class="btn btn-principal" type="submit" disabled="@(_etat == EtatArchimede.Recherche)">Envoyer</button>
-                    <button class="btn btn-contour btn-petit" type="button" disabled="@(_etat == EtatArchimede.Recherche)" @onclick="Transferer">Transférer à un bibliothécaire</button>
+                    <button class="btn btn-contour btn-petit" type="button" disabled="@(_etat == EtatArchimede.Recherche || _repriseHumaine)" @onclick="Transferer">Parler à un bibliothécaire</button>
                 </div>
             </div>
-            <ValidationMessage For="() => _question.Texte" />
+            <div style="padding:0 1.1rem .6rem"><ValidationMessage For="() => _question.Texte" /></div>
         </EditForm>
     </section>
 </div>
@@ -68,11 +87,29 @@
     private QuestionAgentRequete _question = new();
     private EtatArchimede _etat = EtatArchimede.Repos;
     private int? _conversationId;
+    private bool _repriseHumaine;
     private string? _erreur;
 
     private Task Envoyer() => Poser(_question.Texte);
 
+    // La source est déjà affichée en fiche sous la bulle : on retire la ligne « Source : … » du texte.
+    private static string Afficher(ReponseAgentDto r)
+    {
+        if (r.Sources.Count == 0) return r.Texte;
+        var i = r.Texte.LastIndexOf("\n\nSource :", StringComparison.Ordinal);
+        return i > 0 ? r.Texte[..i] : r.Texte;
+    }
+
     private Task Transferer() => Poser("Je veux parler à un bibliothécaire, merci de transmettre ma demande.");
+
+    private void NouvelleConversation()
+    {
+        _echanges.Clear();
+        _conversationId = null;
+        _repriseHumaine = false;
+        _erreur = null;
+        _etat = EtatArchimede.Repos;
+    }
 
     private async Task Poser(string texte)
     {
@@ -89,6 +126,8 @@
         {
             echange.Reponse = r.Valeur;
             _conversationId = r.Valeur!.ConversationId;
+            // L'escalade (ou une reprise déjà faite) met la conversation entre les mains d'un humain.
+            _repriseHumaine = r.Valeur.Escalade || r.Valeur.Moteur == "humain";
             _etat = EtatArchimede.Pret;
         }
         else

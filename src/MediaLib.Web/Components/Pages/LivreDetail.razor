@@ -3,44 +3,60 @@
 
 <PageTitle>@(_livre?.Titre ?? "Livre") — MediaLib</PageTitle>
 
+<p><a href="catalogue">← Retour au catalogue</a></p>
 <Message Erreur="@_erreur" Succes="@_succes" />
+
 @if (_livre is not null)
 {
-    <a href="catalogue" class="discret">← Retour au catalogue</a>
-    <div class="ligne" style="align-items:flex-start;gap:1.6rem;margin-top:.8rem">
-        <div style="width:220px;flex:none"><BookCard Livre="_livre" /></div>
-        <div style="flex:1;min-width:260px">
-            <h1>@_livre.Titre</h1>
-            <p><strong>@_livre.AuteurNom</strong> · @_livre.Annee · <span class="manuscrit">@_livre.CategorieNom</span></p>
-            <p class="lettrine">@(_livre.Resume ?? "Pas encore de résumé pour cet ouvrage.")</p>
-            <table class="registre" style="max-width:420px">
-                <tr><th>ISBN</th><td>@_livre.Isbn</td></tr>
-                <tr><th>Exemplaires</th><td>@_livre.NbExemplaires</td></tr>
-                <tr><th>Disponibles</th><td>@_livre.NbDisponibles</td></tr>
-            </table>
-            <div class="ligne" style="margin-top:1rem">
-                <AuthorizeView Roles="@Roles.Membre">
-                    <Authorized>
-                        @if (_livre.NbDisponibles > 0)
-                        {
-                            <button class="btn btn-principal" disabled="@_occupe" @onclick="Emprunter">Emprunter ce livre</button>
-                        }
-                        else
-                        {
-                            <button class="btn btn-secondaire" disabled="@_occupe" @onclick="Reserver">Réserver ce livre</button>
-                        }
-                    </Authorized>
-                    <NotAuthorized>
-                        <a class="btn btn-principal" href="connexion?returnUrl=@Uri.EscapeDataString($"/livres/{Id}")">Se connecter pour emprunter</a>
-                    </NotAuthorized>
-                </AuthorizeView>
-            </div>
+    <article class="livre-ouvert">
+        <div class="page-g">
+            <Couverture Livre="_livre" />
+            <span class="badge @(_livre.NbDisponibles > 0 ? "badge-olive" : "badge-ardoise")" style="align-self:flex-start">
+                @(_livre.NbDisponibles > 0 ? $"{_livre.NbDisponibles} exemplaire(s) disponible(s)" : "Aucun exemplaire disponible")
+            </span>
         </div>
-    </div>
+        <div class="page-d">
+            <div class="surtitre">@_livre.CategorieNom</div>
+            <h1>@_livre.Titre</h1>
+            <p style="font-size:1.05rem">par <strong>@_livre.AuteurNom</strong></p>
+            <hr class="filet" />
+            <p>@(_livre.Resume ?? "Pas encore de résumé pour cet ouvrage.")</p>
+            <dl class="fiche-technique">
+                <dt>Auteur</dt><dd>@_livre.AuteurNom</dd>
+                <dt>Catégorie</dt><dd>@_livre.CategorieNom</dd>
+                <dt>Année</dt><dd>@_livre.Annee</dd>
+                <dt>ISBN</dt><dd>@_livre.Isbn</dd>
+                <dt>Exemplaires</dt><dd>@_livre.NbDisponibles disponible(s) sur @_livre.NbExemplaires</dd>
+            </dl>
+            <AuthorizeView Roles="@Roles.Membre">
+                <Authorized>
+                    <div class="ligne">
+                        <button class="btn btn-principal" disabled="@(_occupe || _livre.NbDisponibles == 0)" @onclick="Emprunter">Emprunter</button>
+                        <button class="btn btn-contour" disabled="@(_occupe || _livre.NbDisponibles > 0)" @onclick="Reserver">Réserver</button>
+                    </div>
+                    <p class="discret" style="margin-top:.6rem">
+                        @(_livre.NbDisponibles > 0
+                            ? "Le livre est disponible : vous pouvez l'emprunter directement."
+                            : "Le livre est sorti : réservez-le, nous vous préviendrons à son retour.")
+                    </p>
+                </Authorized>
+                <NotAuthorized>
+                    @if (context.User.Identity?.IsAuthenticated == true)
+                    {
+                        <p class="discret">Les emprunts et réservations se font avec un compte Membre.</p>
+                    }
+                    else
+                    {
+                        <a class="btn btn-principal" href="connexion?returnUrl=@Uri.EscapeDataString($"/livres/{Id}")">Se connecter pour emprunter ou réserver</a>
+                    }
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </article>
 }
 else if (_erreur is null)
 {
-    <p class="manuscrit">On cherche la fiche…</p>
+    <p class="discret">Chargement de la fiche…</p>
 }
 
 @code {
@@ -64,7 +80,7 @@ else if (_erreur is null)
         _occupe = true;
         _erreur = _succes = null;
         var r = await Api.PostAsync<EmpruntDto>("api/emprunts", new EmpruntRequete { LivreId = Id });
-        if (r.Ok) _succes = $"C'est noté ! « {r.Valeur!.LivreTitre} » est à rendre le {r.Valeur.DateRetourPrevue:dd/MM/yyyy}.";
+        if (r.Ok) _succes = $"C'est noté : « {r.Valeur!.LivreTitre} » est à rendre le {r.Valeur.DateRetourPrevue:dd/MM/yyyy}.";
         else _erreur = r.Erreur;
         await Charger();
         _occupe = false;
@@ -75,7 +91,7 @@ else if (_erreur is null)
         _occupe = true;
         _erreur = _succes = null;
         var r = await Api.PostAsync<ReservationDto>("api/reservations", new ReservationRequete { LivreId = Id });
-        if (r.Ok) _succes = $"Réservation enregistrée : vous êtes n°{r.Valeur!.Position} dans la file. Nous vous préviendrons au retour du livre.";
+        if (r.Ok) _succes = $"Réservation enregistrée : vous êtes n°{r.Valeur!.Position} dans la file d'attente.";
         else _erreur = r.Erreur;
         _occupe = false;
     }

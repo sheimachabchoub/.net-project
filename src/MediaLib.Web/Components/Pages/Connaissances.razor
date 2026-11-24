@@ -5,8 +5,7 @@
 <h1>Base de connaissances</h1>
 <p class="discret">Recherche dans les documents publiés (règlement, conditions de prêt, FAQ, horaires, charte WhatsApp). Les brouillons et documents archivés ne sont jamais cités.</p>
 
-<form class="fiche-recherche" @onsubmit="Rechercher" @onsubmit:preventDefault>
-    <span class="numero">registre</span>
+<form class="recherche" @onsubmit="Rechercher" @onsubmit:preventDefault>
     <div class="ligne" style="margin-top:.5rem">
         <input type="search" style="flex:1" @bind="_q" placeholder="ex. prolongation, horaires, STOP…" aria-label="Question" />
         <button class="btn btn-principal" type="submit">Chercher</button>

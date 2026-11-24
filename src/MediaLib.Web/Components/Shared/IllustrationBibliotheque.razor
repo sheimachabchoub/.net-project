@@ -1,0 +1,73 @@
+@* Illustration d'accueil : coin lecture d'une bibliothèque (étagères, lampe, fauteuil, livre ouvert, Archimède). *@
+<svg viewBox="0 0 560 400" role="img" aria-label="Un coin lecture : étagères de livres, une lampe allumée, un fauteuil et Archimède sur un livre ouvert">
+    @Dessins.DefinitionsHalo
+    <g stroke="#4A3428" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <!-- mur et sol -->
+        <rect x="0" y="0" width="560" height="320" fill="#E8D7BA" stroke="none" />
+        <rect x="0" y="320" width="560" height="80" fill="#D9C29E" stroke="none" />
+        <path d="M0 320h560" />
+
+        <!-- bibliothèque -->
+        <rect x="26" y="36" width="230" height="284" rx="4" fill="#6B4C3B" />
+        <rect x="40" y="50" width="202" height="256" fill="#5A3F31" stroke="none" />
+        @foreach (var (y, livres) in Rayons)
+        {
+            <path d="@($"M40 {y + 70}h202")" stroke-width="4" />
+            @foreach (var l in livres)
+            {
+                <rect x="@l.X" y="@(y + 70 - l.H)" width="@l.L" height="@l.H" fill="@l.Couleur" stroke-width="1.8" />
+                <path d="@($"M{l.X + 3} {y + 70 - l.H + 8}h{l.L - 6}")" stroke="#C39A5A" stroke-width="1.4" />
+            }
+        }
+
+        <!-- fenêtre en arc -->
+        <path d="M300 160V86c0-30 22-50 52-50s52 20 52 50v74z" fill="#F5EBDD" />
+        <path d="M352 36v124M300 104h104" stroke-width="2" />
+
+        <!-- fauteuil -->
+        <path d="M418 318v-80c0-22 14-34 36-34h40c22 0 36 12 36 34v80" fill="#788363" />
+        <path d="M404 268c0-10 8-16 18-16s18 6 18 16v50h-36z" fill="#6C7658" />
+        <path d="M508 268c0-10 8-16 18-16s18 6 18 16v50h-36z" fill="#6C7658" />
+        <path d="M440 280h68v38h-68z" fill="#8A956F" />
+        <path d="M412 318v14M536 318v14" stroke-width="4" />
+
+        <!-- table de lecture -->
+        <path d="M250 262h150" stroke-width="6" stroke="#4A3428" />
+        <path d="M262 266v66M388 266v66" stroke-width="5" />
+
+        <!-- livre ouvert sur la table -->
+        <path d="M268 258c18-8 36-8 56 2 20-10 38-10 56-2v6c-18-6-36-6-56 3-20-9-38-9-56-3z" fill="#FBF6EE" stroke-width="2" />
+        <path d="M324 260v7" stroke-width="1.6" />
+    </g>
+
+    <!-- lampe allumée -->
+    <g transform="translate(360 170)">@Dessins.Lampe("halo-fixe")</g>
+
+    <!-- Archimède sur la table -->
+    <g transform="translate(262 146) scale(.78)">@Dessins.Hibou</g>
+</svg>
+
+@code {
+    private record LivreDessine(int X, int L, int H, string Couleur);
+
+    private static readonly string[] Couleurs = ["#A7614C", "#788363", "#24352D", "#C39A5A", "#4A3428", "#8C4E3B", "#5A6447"];
+
+    // Trois rayons de livres générés de façon déterministe (même dessin à chaque affichage).
+    private static readonly (int Y, List<LivreDessine> Livres)[] Rayons = Enumerable.Range(0, 3).Select(r =>
+    {
+        var y = 50 + r * 84;
+        var livres = new List<LivreDessine>();
+        var x = 46;
+        var i = r * 3;
+        while (x < 228)
+        {
+            var l = 12 + (i * 7 % 9);
+            var h = 48 + (i * 11 % 18);
+            if (x + l > 236) break;
+            livres.Add(new LivreDessine(x, l, h, Couleurs[i % Couleurs.Length]));
+            x += l + 2;
+            i++;
+        }
+        return (y, livres);
+    }).ToArray();
+}

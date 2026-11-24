@@ -2,28 +2,20 @@
 @inject ApiClient Api
 
 <PageTitle>Catalogue — MediaLib</PageTitle>
-<h1>Catalogue</h1>
+<div class="entete-page">
+    <h1>Catalogue</h1>
+    <p>Cherchez par titre, auteur ou ISBN, puis filtrez par catégorie ou disponibilité.</p>
+</div>
 
-<form class="fiche-recherche" @onsubmit="Rechercher" @onsubmit:preventDefault>
-    <span class="numero">fiche n°@(_page)</span>
+<form class="recherche" @onsubmit="Rechercher" @onsubmit:preventDefault role="search">
     <div class="champs-recherche">
         <div>
-            <label for="q">Titre, auteur ou ISBN</label>
-            <input id="q" type="search" @bind="_q" placeholder="ex. Verne, Le Petit Prince…" />
+            <label for="q">Recherche</label>
+            <input id="q" type="search" @bind="_q" placeholder="Titre, auteur ou ISBN…" />
         </div>
         <div>
-            <label for="cat">Catégorie</label>
-            <select id="cat" @bind="_categorieId">
-                <option value="0">Toutes</option>
-                @foreach (var c in _categories)
-                {
-                    <option value="@c.Id">@c.Nom</option>
-                }
-            </select>
-        </div>
-        <div>
-            <label for="tri">Tri</label>
-            <select id="tri" @bind="_tri">
+            <label for="tri">Trier par</label>
+            <select id="tri" @bind="_tri" @bind:after="Rechercher">
                 @foreach (var t in Enum.GetValues<TriLivres>())
                 {
                     <option value="@t">@Libelles.Tri(t)</option>
@@ -32,28 +24,36 @@
         </div>
         <div>
             <label for="dispo">Disponibilité</label>
-            <select id="dispo" @bind="_disponibles">
-                <option value="False">Tous</option>
-                <option value="True">Disponibles</option>
+            <select id="dispo" @bind="_disponibles" @bind:after="Rechercher">
+                <option value="False">Tous les livres</option>
+                <option value="True">Disponibles seulement</option>
             </select>
         </div>
-        <button class="btn btn-principal" type="submit">Chercher</button>
+        <button class="btn btn-principal" type="submit">Rechercher</button>
     </div>
 </form>
+
+<div class="puces" role="group" aria-label="Catégories">
+    <button class="puce @(_categorieId == 0 ? "active" : "")" @onclick="() => Categorie(0)">Toutes</button>
+    @foreach (var c in _categories)
+    {
+        <button class="puce @(_categorieId == c.Id ? "active" : "")" @onclick="() => Categorie(c.Id)">@c.Nom</button>
+    }
+</div>
 
 <Message Erreur="@_erreur" />
 @if (_resultat is null && _erreur is null)
 {
-    <p class="manuscrit">On parcourt les rayonnages…</p>
+    <p class="discret">Chargement des rayonnages…</p>
 }
 else if (_resultat is not null)
 {
-    <p class="discret">@_resultat.Total ouvrage(s) trouvé(s)</p>
+    <p class="discret">@_resultat.Total livre(s)</p>
     @if (_resultat.Total == 0)
     {
-        <p class="lettrine">Aucun livre ne correspond. Essayez un autre mot, ou demandez à Archimède de vous conseiller.</p>
+        <div class="carte">Aucun livre ne correspond. Essayez un autre mot, ou demandez conseil à <a href="assistant">Archimède</a>.</div>
     }
-    <div class="grille">
+    <div class="etagere">
         @foreach (var l in _resultat.Elements)
         {
             <BookCard Livre="l" />
@@ -74,7 +74,7 @@ else if (_resultat is not null)
 
     protected override async Task OnInitializedAsync()
     {
-        _categories = (await Api.GetAsync<List<CategorieDto>>("api/categories")).Valeur ?? [];
+        _categories = (await Api.GetAsync<List<CategorieDto>>("api/categories")).Valeur?.Where(c => c.NbLivres > 0).ToList() ?? [];
         await Charger();
     }
 
@@ -82,6 +82,12 @@ else if (_resultat is not null)
     {
         _page = 1;
         await Charger();
+    }
+
+    private async Task Categorie(int id)
+    {
+        _categorieId = id;
+        await Rechercher();
     }
 
     private async Task ChangerPage(int p)

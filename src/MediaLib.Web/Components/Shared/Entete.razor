@@ -1,38 +1,67 @@
 @inject MediaLibAuthStateProvider Auth
 @inject NavigationManager Navigation
+@implements IDisposable
 
-<header class="entete">
-    <a class="marque" href="">
-        <svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true">
-            <path d="M4 9c6-2 11-1 16 3 5-4 10-5 16-3v23c-6-2-11-1-16 3-5-4-10-5-16-3z" fill="#F5EBDD" stroke="#C39A5A" stroke-width="1.5" />
-            <path d="M20 12v23" stroke="#4A3428" stroke-width="1.2" />
-            <path d="M28 8v10l2-1.5 2 1.5V8" fill="#A7614C" />
-        </svg>
-        <strong>MediaLib</strong>
-        <span>Bibliothèque Vivante</span>
-    </a>
-    <div class="espace"></div>
-    <div class="compte">
-        <AuthorizeView>
-            <Authorized>
-                <AuthorizeView Roles="@Roles.Gestion" Context="g">
-                    <a href="gestion/emprunts">Espace bibliothécaire</a>
-                </AuthorizeView>
-                <span>Bonjour, <strong>@context.User.Identity?.Name</strong></span>
-                <button class="btn btn-contour btn-petit" style="color:var(--creme);border-color:rgba(245,235,221,.5)" @onclick="Deconnecter">Se déconnecter</button>
-            </Authorized>
-            <NotAuthorized>
-                <a href="connexion">Se connecter</a>
-                <a class="btn btn-principal btn-petit" href="inscription">S'inscrire</a>
-            </NotAuthorized>
-        </AuthorizeView>
+<header class="barre @(_ouvert ? "ouverte" : "")">
+    <div class="barre-interieur">
+        <a class="marque" href="">
+            <svg width="30" height="30" viewBox="0 0 40 40" aria-hidden="true">
+                <path d="M4 10c6-2.2 11-1.2 16 2.8 5-4 10-5 16-2.8v22c-6-2-11-1-16 3-5-4-10-5-16-3z" fill="#F5EBDD" stroke="#C39A5A" stroke-width="1.6" stroke-linejoin="round" />
+                <path d="M20 12.8v22.6" stroke="#24352D" stroke-width="1.3" />
+                <path d="M28 9v9l2.2-1.6L32.4 18V9" fill="#A7614C" />
+            </svg>
+            <strong>MediaLib</strong>
+        </a>
+        <button class="menu-mobile" type="button" aria-expanded="@_ouvert" aria-controls="nav-principale" @onclick="() => _ouvert = !_ouvert">
+            @(_ouvert ? "Fermer" : "Menu")
+        </button>
+        <nav id="nav-principale" class="nav-principale" aria-label="Navigation principale">
+            <NavLink href="" Match="NavLinkMatch.All">Accueil</NavLink>
+            <NavLink href="catalogue">Catalogue</NavLink>
+            <NavLink href="assistant">Assistant IA</NavLink>
+            <NavLink href="connaissances">Règlement</NavLink>
+            <AuthorizeView Roles="@Roles.Membre">
+                <NavLink href="mes-emprunts">Mes emprunts</NavLink>
+                <NavLink href="reservations">Réservations</NavLink>
+                <NavLink href="historique">Historique</NavLink>
+            </AuthorizeView>
+            <AuthorizeView Roles="@Roles.Gestion">
+                <NavLink href="gestion/emprunts">Espace bibliothécaire</NavLink>
+            </AuthorizeView>
+        </nav>
+        <div class="compte">
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink href="profil" class="nom">@context.User.Identity?.Name</NavLink>
+                    <button class="btn btn-petit" style="background:transparent;color:var(--creme);border-color:rgba(245,235,221,.4)" @onclick="Deconnecter">Se déconnecter</button>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="connexion">Se connecter</a>
+                    <a class="btn btn-principal btn-petit" href="inscription">S'inscrire</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
     </div>
 </header>
 
 @code {
+    private bool _ouvert;
+
+    protected override void OnInitialized() => Navigation.LocationChanged += Fermer;
+
+    // Le menu mobile se referme après chaque navigation.
+    private void Fermer(object? sender, LocationChangedEventArgs e)
+    {
+        if (!_ouvert) return;
+        _ouvert = false;
+        InvokeAsync(StateHasChanged);
+    }
+
     private async Task Deconnecter()
     {
         await Auth.DeconnecterAsync();
         Navigation.NavigateTo("");
     }
+
+    public void Dispose() => Navigation.LocationChanged -= Fermer;
 }

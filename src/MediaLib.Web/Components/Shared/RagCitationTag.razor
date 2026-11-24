@@ -1,8 +1,10 @@
 @inject ApiClient Api
 
-@* Marque-page de source : ouvre le passage cité dans un tiroir latéral. *@
-<button type="button" class="citation" @onclick="Ouvrir" title="Ouvrir la source">
-    📖 @Source.Titre — Version @Source.Version — Section : @Source.Section
+@* Fiche de source : « Source : Titre — Version / Section », cliquable pour lire le passage cité. *@
+<button type="button" class="citation" @onclick="Ouvrir" title="Lire le passage cité">
+    <span class="etiquette">Source</span>
+    <strong>@Source.Titre — Version @Source.Version</strong>
+    <span>Section : @Source.Section</span>
 </button>
 
 @if (_ouvert)
@@ -10,15 +12,15 @@
     <div class="tiroir-fond" @onclick="() => _ouvert = false"></div>
     <aside class="tiroir" role="dialog" aria-label="Source citée">
         <div class="ligne" style="justify-content:space-between">
-            <span class="manuscrit">Version @Source.Version</span>
+            <span class="surtitre" style="margin:0">Version @Source.Version</span>
             <button class="btn btn-contour btn-petit" @onclick="() => _ouvert = false">Fermer</button>
         </div>
-        <h2>@Source.Titre</h2>
+        <h2 style="margin-top:.8rem">@Source.Titre</h2>
         <h3>@Source.Section</h3>
         <hr class="filet" />
         @if (_extrait is null)
         {
-            <p class="manuscrit">Je feuillette le document…</p>
+            <p class="discret">Chargement du passage…</p>
         }
         else
         {

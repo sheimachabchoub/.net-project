@@ -1,0 +1,26 @@
+@* Couverture : image si fournie, sinon une reliure aux couleurs de la catégorie. *@
+<div class="couverture" style="background-image:@Fond()" aria-hidden="true">
+    <div class="filets"></div>
+    <div>
+        <div class="titre-couverture">@Livre.Titre</div>
+        <div class="auteur-couverture">@Livre.AuteurNom</div>
+    </div>
+    <div class="filets"></div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public LivreDto Livre { get; set; } = default!;
+
+    // Teintes de la palette uniquement (brun, vert, terracotta, olive).
+    private static readonly string[][] Teintes =
+    [
+        ["#4A3428", "#6B4C3B"], ["#24352D", "#3A5244"], ["#8C4E3B", "#A7614C"], ["#5A6447", "#788363"], ["#3B2A20", "#5A3F31"],
+    ];
+
+    private string Fond()
+    {
+        if (!string.IsNullOrWhiteSpace(Livre.Couverture)) return $"linear-gradient(rgba(0,0,0,.1),rgba(0,0,0,.55)), url('{Livre.Couverture}')";
+        var t = Teintes[Math.Abs(Livre.CategorieId) % Teintes.Length];
+        return $"linear-gradient(160deg, {t[1]}, {t[0]} 75%)";
+    }
+}
